@@ -1,0 +1,27 @@
+.director-menu-content > .panel { margin-bottom:18px; }
+.director-indicators { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0; }
+.director-indicators article { background:white; border:1px solid #dfe8f4; padding:18px; border-radius:14px; }
+.director-indicators span, .director-indicators small { display:block; color:#566d8b; font-size:12px; }
+.director-indicators strong { display:block; font-size:28px; color:#103471; margin:8px 0; }
+.director-indicators small { font-size:10px; }
+.director-menu-content .panel > p { font-size:13px; line-height:1.7; }
+.director-menu-content .panel { margin-bottom:18px; }
+.risk-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+.risk-tabs button { border:1px solid #d1def0; background:white; color:#204773; padding:10px 14px; border-radius:10px; font-size:12px; }
+.risk-tabs button.selected { background:#001a70; color:white; }
+.case-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.case-card { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
+.case-card p { margin:0; }
+.case-card .secondary-button { margin-top:auto; }
+.case-kits { display:flex; flex-wrap:wrap; gap:12px; }
+.decision-form { display:grid; gap:12px; max-width:750px; }
+.decision-form label { font-size:13px; }
+.decision-form textarea { resize:vertical; padding:12px; border-radius:10px; border:1px solid #cbd7e7; font:inherit; font-size:13px; }
+.readable-list { color:#526884; font-size:13px; line-height:1.8; padding-left:22px; }
+.action-row { display:flex; flex-wrap:wrap; gap:12px; }
+.planned-page { padding:36px!important; min-height:260px; }
+.planned-page p { color:#60718a; line-height:1.7; max-width:600px; }
+.role-operations .role-menu .nav-item { line-height:1.4; }
+@media(max-width:1080px) { .case-grid { grid-template-columns:1fr; }.director-indicators { grid-template-columns:repeat(2,minmax(0,1fr)); }.role-operations .role-menu .nav-item span { display:block; }.role-operations .role-menu .nav-item { padding:10px 3px; font-size:9px; text-align:center; gap:5px; } }
+@media(max-width:760px) { .role-operations .sidebar { height:86px; padding:5px; }.role-operations .sidebar .role-menu { display:flex; overflow-x:auto; gap:5px; align-items:stretch; }.role-operations .sidebar .role-menu .nav-item { display:flex; flex:0 0 110px; flex-direction:column; justify-content:center; height:70px; padding:6px; font-size:10px; }.role-operations .main-content { padding-bottom:110px; }.role-operations .role-menu .nav-item span { display:block; }.analysis-controls { flex-wrap:wrap; } }
+@media print { .sidebar, .topbar, .skip-link, .filter-panel, .report-actions, .demo-banner, .dashboard-footer, .history-dialog { display:none!important; }.role-operations .app-shell { display:block; }.role-operations .main-content { padding:0; }.panel { box-shadow:none!important; break-inside:avoid; }.director-indicators { grid-template-columns:repeat(4,1fr); } }

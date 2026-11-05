@@ -1,0 +1,17 @@
+import { useMemo, useState } from 'react';
+import { serviceCases } from '../domain/director-views.js';
+import { CONDITION_LABELS } from '../domain/stock.js';
+import { formatDate } from '../components/KitHistory.jsx';
+
+export default function ServiceRiskTable({ selected, onOpen }) {
+  const cases = useMemo(() => serviceCases(selected), [selected]);
+  const [search, setSearch] = useState(''), [category, setCategory] = useState(''), [page, setPage] = useState(0);
+  const rows = cases.filter(k => (!category || k[category]) && [k.id, k.product, k.holder, k.region, k.department, k.city, k.reason].join(' ').toLocaleLowerCase('fr').includes(search.trim().toLocaleLowerCase('fr')));
+  const pages = Math.max(1, Math.ceil(rows.length / 20)), current = Math.min(page, pages - 1);
+  return <><div className="commercial-metrics risk-summary">{[['Kits concernés', cases.length], ['Retours SAV ouverts', cases.filter(k => k.returned).length], ['Kits endommagés', cases.filter(k => k.damaged).length], ['En réparation', cases.filter(k => k.inRepair).length]].map(([label, value]) => <article key={label}><span>{label}</span><strong>{value.toLocaleString('fr-FR')}</strong></article>)}</div><p className="commercial-caption">Synthèse du périmètre géographique et produit sélectionné. Un kit peut appartenir à plusieurs catégories ; le total est dédupliqué. La recherche ci-dessous affine uniquement le tableau.</p><section className="panel table-panel service-risk-table"><h2>Kits en retour SAV, endommagés ou en réparation</h2><p className="panel__subtitle">{rows.length} kits concernés · une ligne par kit. Les retours résolus sont exclus.</p>
+    <div className="commercial-toolbar"><input aria-label="Rechercher un kit à risque" placeholder="Kit, produit, détenteur, localisation…" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} /><label className="commercial-control">Situation<select value={category} onChange={e => { setCategory(e.target.value); setPage(0); }}><option value="">Toutes</option><option value="returned">Retour SAV</option><option value="damaged">Endommagé</option><option value="inRepair">En réparation</option></select></label></div>
+    <div className="table-scroll"><table><thead><tr><th>Kit / produit</th><th>Situation / état</th><th>Détenteur</th><th>Localisation</th><th>Motif</th><th>Dernier événement SAV</th><th className="numeric">Ancienneté (j)</th></tr></thead><tbody>{rows.slice(current * 20, current * 20 + 20).map(k => <tr key={k.id}><td><button className="link-button" onClick={() => onOpen(k)}>{k.id}</button><small className="cell-note">{k.product}</small></td><td>{[k.returned && 'Retour SAV', k.damaged && 'Endommagé', k.inRepair && 'En réparation'].filter(Boolean).join(' · ')}<small className="cell-note">{CONDITION_LABELS[k.condition]}</small></td><td>{k.holder}</td><td>{k.city}<small className="cell-note">{k.department} · {k.region}</small></td><td>{k.reason}</td><td>{k.serviceEvent ? formatDate(k.serviceEvent.at) : 'Non renseigné'}</td><td className="numeric">{k.daysOpen ?? '—'}</td></tr>)}</tbody></table></div>
+    {!rows.length && <p className="table-empty">Aucun kit concerné dans cette sélection.</p>}
+    <div className="pagination-controls"><span>{rows.length} kits · page {current + 1} / {pages}</span><button className="secondary-button" disabled={!current} onClick={() => setPage(current - 1)}>Précédent</button><button className="secondary-button" disabled={current + 1 === pages} onClick={() => setPage(current + 1)}>Suivant</button></div>
+  </section></>;
+}

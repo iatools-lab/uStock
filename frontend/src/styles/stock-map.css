@@ -1,0 +1,30 @@
+.territory-card { padding:0; overflow:hidden; }
+.territory-mix-button { display:block; width:100%; padding:18px; text-align:left; background:transparent; border:0; color:inherit; font:inherit; cursor:pointer; }
+.territory-mix-button>strong { display:block; font-size:32px; font-weight:600; margin:18px 0; }
+.territory-mix-button>strong small { font-size:12px; color:#657a93; font-weight:400; }
+.territory-mix-hint { display:block; color:#2457a7; font-size:12px; margin-top:14px; }
+.territory-explore { margin:0 18px 18px; max-width:calc(100% - 36px); }
+.territory-card>.unassigned-note { margin:0 18px 18px; }
+.product-mix-dialog { width:min(720px,calc(100vw - 24px)); max-height:90dvh; padding:0; }
+.product-mix-dialog .panel { box-shadow:none; margin:16px 0; }
+.mix-explore { display:flex; align-items:center; gap:8px; }
+.map-layout { display:grid; grid-template-columns:minmax(0,1fr) 245px; gap:22px; align-items:start; }
+.map-layout>div { min-width:0; }
+.cameroon-map { position:relative; aspect-ratio:4/3; overflow:hidden; border:1px solid #dce6f2; border-radius:15px; background:#f0f5fa; }
+.cameroon-map svg { display:block; width:100%; height:100%; }
+.cameroon-map path { cursor:pointer; }
+.cameroon-map path:hover,.cameroon-map path:focus { fill-opacity:.8; stroke:#142e63; outline:none; }
+.map-marker { position:absolute; transform:translate(-50%,-50%); min-width:38px; min-height:38px; padding:7px 10px; border-radius:24px; background:#082a70; color:white; border:2px solid white; box-shadow:0 2px 7px #001a7030; cursor:pointer; z-index:1; }
+.map-marker strong { font-size:14px; }.map-marker span { display:block; position:absolute; top:100%; left:50%; transform:translateX(-50%); white-space:nowrap; max-width:135px; overflow:hidden; text-overflow:ellipsis; font-size:10px; font-weight:600; color:#173863; background:#ffffffed; padding:3px 5px; border-radius:4px; pointer-events:none; }
+.map-marker:hover,.map-marker:focus-visible { background:#d95011; z-index:3; }
+.map-controls { position:absolute; top:10px; left:10px; display:flex; flex-direction:column; gap:4px; z-index:4; }.map-controls button { background:white; width:32px; height:32px; box-shadow:0 1px 4px #00206020; }
+.map-legend { display:flex; flex-wrap:wrap; gap:12px; font-size:11px; color:#4b627d; margin:15px 0; }.map-legend span { display:flex; gap:6px; align-items:center; }.map-legend i { width:10px; height:10px; border-radius:3px; }
+.map-places { max-height:600px; overflow:auto; scrollbar-width:thin; scrollbar-color:#bbcade transparent; padding-right:4px; }.map-places h3 { font-size:15px; color:#183b70; margin:0 0 14px; }
+.map-place { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; border-bottom:1px solid #e4ecf5; padding:14px 0; }.map-place button { font:inherit; cursor:pointer; }
+.map-place-name { text-align:left; color:#234d78; background:none; border:0; padding:0; font-size:13px!important; }.map-place-name small { display:block; font-size:10px; color:#70839b; margin-top:5px; }.map-count { border:1px solid #d8e6f5; border-radius:9px; background:#f0f6fd; color:#153c77; font-size:12px!important; padding:7px; align-self:start; white-space:nowrap; }
+.map-explore { grid-column:1 / -1; display:flex; align-items:center; gap:4px; font-size:11px!important; }
+.map-total { width:100%; padding:12px; color:#143d79; border:1px solid #cadbf0; border-radius:10px; background:#f4f8fd; cursor:pointer; }
+.map-attribution { font-size:10px; color:#71839b; line-height:1.6; }.map-attribution a { color:#355e8e; }
+.map-panel .commercial-control select { max-width:100%; }.map-panel .commercial-control { flex-wrap:wrap; max-width:100%; }
+@media(max-width:1100px) { .map-layout { grid-template-columns:1fr; }.map-places { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 20px; max-height:330px; }.map-places>h3,.map-places>.notice,.map-total { grid-column:1 / -1; } }
+@media(max-width:600px) { .map-places { grid-template-columns:1fr; }.map-marker { min-width:30px; min-height:30px; padding:4px 7px; }.map-marker strong { font-size:11px; }.map-marker span { max-width:90px; font-size:9px; }.map-controls { top:5px; left:5px; display:grid; grid-template-columns:repeat(2,27px); gap:3px; }.map-controls button { width:27px; height:27px; }.product-mix-dialog .history-content { padding:16px; } }

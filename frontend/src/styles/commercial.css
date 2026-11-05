@@ -1,0 +1,61 @@
+.commercial-content>section,.commercial-content>.panel { margin-bottom:20px; }
+.commercial-content .panel>p { font-size:13px; line-height:1.7; color:#61768d; }
+.commercial-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:18px 0 22px; }
+.commercial-metrics article { border:1px solid #e3ebf4; border-radius:15px; padding:20px; background:white; }
+.commercial-metrics span { display:block; color:#627993; font-size:12px; }
+.commercial-metrics strong { display:block; color:#123971; font-size:29px; margin:12px 0 8px; }
+.commercial-metrics small { color:#8291a5; font-size:10px; line-height:1.5; display:block; }
+.commercial-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:12px 0 20px; }
+.commercial-heading p,.commercial-caption { font-size:12px; color:#75879d; line-height:1.7; }
+.commercial-card-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:15px 0; }
+.commercial-product { padding:22px; background:#fff; color:#285282; text-align:left; border:1px solid #e1e9f3; border-radius:13px; }
+.commercial-product:hover { border-color:#89acd5; background:#fafcff; }
+.commercial-product h3 { font-size:15px; margin:14px 0; }
+.commercial-product>strong { display:block; font-size:31px; color:#153971; }
+.commercial-product strong small { font-size:12px; font-weight:400; }
+.commercial-product>div { display:flex; flex-wrap:wrap; gap:12px; font-size:11px; color:#75899f; margin:18px 0; }
+.card-action { display:flex; align-items:center; gap:7px; font-size:12px; }
+.commercial-toolbar,.commercial-actions { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:18px 0; }
+.commercial-control { display:inline-flex; align-items:center; gap:10px; color:#5b7390; font-size:12px; }
+.commercial-toolbar>input { min-width:0; max-width:100%; width:260px; box-sizing:border-box; border:1px solid #cad9ea; border-radius:9px; padding:12px; color:#24486f; font:inherit; font-size:13px; background:white; }
+.network-card { display:flex; flex-direction:column; gap:10px; }
+.network-card>strong { font-size:28px; color:#123971; }
+.network-card>strong small { font-size:11px; font-weight:400; }
+.network-card dl { font-size:12px; display:grid; gap:12px; }
+.network-card dl div { display:flex; justify-content:space-between; gap:15px; }.network-card dt { color:#7c8da1; }.network-card dd { margin:0; color:#24486f; text-align:right; }
+.network-card .secondary-button { margin-top:auto; }
+.am-action-field { display:grid; gap:7px; margin-top:14px; font-size:12px; color:#60758e; }
+.am-action-field input,.am-action-field textarea { box-sizing:border-box; width:100%; min-width:0; padding:10px; border:1px solid #cad9ea; border-radius:9px; font:inherit; }
+.am-action-field textarea { resize:vertical; }
+.allocation-card { border:1px solid #e3eaf4; padding:20px; border-radius:12px; }
+.allocation-card h3 { font-size:14px; color:#194072; }.allocation-card p { font-size:12px; line-height:1.7; color:#6d829b; }.allocation-card svg { vertical-align:middle; }.allocation-card>strong { font-size:26px; color:#153c72; }
+.commercial-request { display:grid; gap:14px; max-width:740px; }.commercial-request label { display:grid; gap:7px; font-size:12px; color:#60758e; }.commercial-request input,.commercial-request textarea { border:1px solid #cad9ea; border-radius:9px; padding:12px; font:inherit; }.commercial-request textarea { resize:vertical; }
+.commercial-alert h2 { margin-top:14px!important; font-size:15px!important; line-height:1.5; }.commercial-alert p { font-size:12px; line-height:1.7; color:#6c8098; }
+#commercial-inspection { scroll-margin-top:20px; }
+@media(max-width:1250px) { .commercial-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.commercial-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:760px) { .commercial-card-grid { grid-template-columns:1fr; }.commercial-metrics { gap:8px; }.commercial-metrics article { padding:14px; }.commercial-metrics strong { font-size:24px; }.commercial-control,.commercial-heading { flex-wrap:wrap; }.commercial-toolbar { align-items:flex-start; } }
+@media print { .header-filters,.commercial-actions,.commercial-toolbar { display:none!important; } }
+/* Synthèses du Directeur Commercial : quantités par lieu, sans liste de séries. */
+.dc-availability .commercial-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.dc-place-total { display:block; color:#123971; font-size:22px; margin:16px 0; }
+.dc-product-needs>div { border-top:1px solid #e4ecf5; padding:12px 0; }
+.dc-product-line { display:flex; justify-content:space-between; gap:12px; font-size:12px; color:#234d78; flex-wrap:wrap; }
+.dc-product-line>span { font-weight:600; color:#b4480c; }
+.dc-product-needs p { font-size:11px; color:#647c96; line-height:1.6; margin:7px 0 0; }
+.dc-service-card dl { display:grid; gap:12px; font-size:12px; }
+.dc-service-card dl div { display:flex; justify-content:space-between; gap:12px; }
+.dc-service-card dd { margin:0; font-weight:600; }
+.dc-summary-bars .bar-row__meta { flex-wrap:wrap; gap:8px; }
+@media(max-width:760px) { .dc-availability .commercial-metrics { grid-template-columns:1fr; } }
+.dc-availability-card dl { display:grid; gap:18px; margin:24px 0 0; }
+.dc-availability-card dl>div { display:flex; justify-content:space-between; align-items:center; gap:14px; font-size:13px; color:#5b7390; }
+.dc-availability-card dd { margin:0; font-size:27px; font-weight:650; color:#163c70; }
+.dc-place-open { display:block; width:100%; padding:0 0 12px; border:0; border-bottom:1px solid #e3ebf3; text-align:left; background:transparent; color:#1a4579; cursor:pointer; }
+.dc-place-open>span { display:block; margin-top:10px; font-size:12px; }
+.dc-place-open:hover h2 { text-decoration:underline; }
+.dc-performance-card { text-align:left; cursor:pointer; font:inherit; color:#244d7a; width:100%; }
+.dc-performance-card:hover { border-color:#729bcc; }
+.dc-performance-card>span:last-child { font-size:12px; }
+.dc-product-performance { padding:20px; border:1px solid #e1eaf5; border-radius:12px; color:#244d7a; }
+.dc-product-performance h3 { font-size:14px; }
+.dc-product-performance strong { display:block; margin-top:18px; font-size:22px; }

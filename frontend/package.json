@@ -1,0 +1,27 @@
+{
+  "name": "upowa-tracking-4-dashboards",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "test": "node --test --test-isolation=none tests/*.test.js",
+    "test:render": "node tests/render-smoke.mjs",
+    "test:live": "node tests/live-ui.mjs",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "lucide-react": "latest",
+    "pg": "^8.23.1",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "read-excel-file": "^9.3.13",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  }
+}
