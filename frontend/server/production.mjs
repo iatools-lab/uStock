@@ -2,15 +2,15 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { copyFileSync, existsSync, constants } from 'node:fs';
 import { gzip } from 'node:zlib';
 import { promisify } from 'node:util';
 import { createLocalDatabase, registerDatabaseRoutes } from './local-database.mjs';
 import { settings } from '../../backend/scripts/bi/config.mjs';
+import { productionSelection } from './production-selection.mjs';
 
 const compress=promisify(gzip);
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon','.json':'application/json','.woff2':'font/woff2','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
-export function createProductionServer({database=createLocalDatabase(),dist=fileURLToPath(new URL('../dist/',import.meta.url))}={}){
+export function createProductionServer({database=createLocalDatabase({selectionStore:productionSelection()}),dist=fileURLToPath(new URL('../dist/',import.meta.url))}={}){
   const root=resolve(dist),routes=[];
   registerDatabaseRoutes({middlewares:{use:(path,handler)=>routes.push({path,handler})}},database);
   const server=createServer(async(req,res)=>{
@@ -24,6 +24,7 @@ export function createProductionServer({database=createLocalDatabase(),dist=file
       }
       const route=routes.find(r=>url.pathname===r.path);
       if(route){
+        if(req.method!=='GET'){res.statusCode=405;res.setHeader('Allow','GET');res.setHeader('Content-Type','application/json');res.end('{"error":"Production en lecture seule."}');return;}
         if(/\bgzip\b/.test(req.headers['accept-encoding']||'')){
           const end=res.end.bind(res);
           res.end=body=>{
@@ -56,8 +57,7 @@ export function createProductionServer({database=createLocalDatabase(),dist=file
 }
 
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
-  const env=settings(),seed=env.UKIT_SELECTION_SEED,target=env.UKIT_SELECTION_FILE;
-  if(seed&&target&&existsSync(seed)&&!existsSync(target))copyFileSync(seed,target,constants.COPYFILE_EXCL);
+  const env=settings();
   const port=Number(env.PORT||3000);if(!Number.isInteger(port)||port<1||port>65535)throw new Error('INVALID_PORT');
   const app=createProductionServer();
   app.server.listen(port,env.HOST||'127.0.0.1',()=>console.log(`Serveur ukit prêt sur le port ${port}`));

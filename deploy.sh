@@ -95,28 +95,6 @@ docker info >/dev/null
 
 log 'Construction de l application.'
 "${COMPOSE[@]}" build dashboard
-mkdir -p -- "$PROJECT_DIR/backend/backups/selection"
-chmod 0755 "$PROJECT_DIR/backend/backups/selection"
-if [[ -f "$PROJECT_DIR/frontend/server/analysis-selection.sqlite" ]]; then
-  log 'Sauvegarde coherente des regles administrateur existantes.'
-  "${COMPOSE[@]}" run --rm --no-deps --user 0 --entrypoint node \
-    -v "$PROJECT_DIR/frontend/server:/selection-source:ro" \
-    -v "$PROJECT_DIR/backend/backups/selection:/selection-export" \
-    dashboard --input-type=module -e '
-      import {DatabaseSync,backup} from "node:sqlite";
-      const db=new DatabaseSync("/selection-source/analysis-selection.sqlite",{readOnly:true});
-      try{await backup(db,"/selection-export/analysis-selection.sqlite");}finally{db.close();}
-    '
-fi
-if [[ -f "$PROJECT_DIR/backend/backups/selection/analysis-selection.sqlite" ]]; then
-  # Le conteneur applicatif utilise l'utilisateur node (uid 1000).
-  chmod 0644 "$PROJECT_DIR/backend/backups/selection/analysis-selection.sqlite"
-else
-  if ! "${COMPOSE[@]}" run --rm --no-deps --entrypoint node dashboard -e 'process.exit(require("node:fs").existsSync("/data/analysis-selection.sqlite")?0:1)'; then
-    die 'Premier deploiement sans selection : copier backend/backups/selection/analysis-selection.sqlite depuis le poste actuel, ou frontend/server/analysis-selection.sqlite, puis relancer. Les exclusions ne doivent pas etre perdues.'
-  fi
-  log 'Les regles administrateur du volume existant seront conservees.'
-fi
 # Le fichier .env monte en lecture seule doit etre lisible par l'utilisateur node.
 chgrp 1000 "$PROJECT_DIR/backend/.env"
 chmod 0640 "$PROJECT_DIR/backend/.env"
