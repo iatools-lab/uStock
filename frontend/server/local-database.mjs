@@ -1,9 +1,10 @@
 import pg from 'pg';
 import { queryStock } from './stock-query.mjs';
 import { openSelectionStore, querySelection } from './analysis-selection.mjs';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { parseEnv } from 'node:util';
-import { connection, parseConfig } from '../../backend/scripts/bi/config.mjs';
+import { connection, parseConfig, settings } from '../../backend/scripts/bi/config.mjs';
+import { createSnapshotCache, snapshotKey } from './snapshot-cache.mjs';
 
 export function configuration(overrides={}) {
   let existing = {}, local = {};
@@ -23,11 +24,24 @@ export function createLocalDatabase({selectionStore}={}) {
   const selection=selectionStore||openSelectionStore();
   const pool = new pg.Pool(configuration()); pool.on('error',()=>{});
   pool.on('connect',client=>client.on('error',()=>{}));
+  const ttl=Number(settings().UKIT_CACHE_TTL_SECONDS??60);
+  if(!Number.isFinite(ttl)||ttl<0||ttl>3600)throw new Error('INVALID_CACHE_TTL');
+  const cache=createSnapshotCache({ttl:ttl*1000});
+  let context;
   async function snapshot(params) {
+    const rules=selection.read();
+    const file=statSync(new URL('./Agents_Terrain_Uniformises.xlsx',import.meta.url));
+    const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Douala',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const reference=`${file.mtimeMs}:${file.size}`,current=JSON.stringify([rules.revision,reference,date]);
+    if(context!==current){cache.clear();context=current;}
+    const key=snapshotKey(params,{revision:rules.revision,reference,date});
+    return cache.get(key,()=>readSnapshot(new URLSearchParams(params),rules));
+  }
+  async function readSnapshot(params,rules) {
     const c=await pool.connect();
     try {
       await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-      const data=await queryStock(c,params,selection.read());
+      const data=await queryStock(c,params,rules);
       await c.query('COMMIT');
       return data;
     } catch(error) { await c.query('ROLLBACK').catch(()=>{}); throw error; }
@@ -39,15 +53,12 @@ export function createLocalDatabase({selectionStore}={}) {
   async function saveSelection(body){
     if(!body||!['asset','product'].includes(body.kind)||!Array.isArray(body.keys)||body.keys.length<1||body.keys.length>5000||body.keys.some(key=>typeof key!=='string'||!key.trim()||key.length>200)||![true,false,null].includes(body.included)||typeof(body.reason??'')!=='string'||(body.reason?.length||0)>500)throw new Error('INVALID_SELECTION');
     if(body.included!==null){const column=body.kind==='asset'?'serial_number':'product_reference';const result=await pool.query(`SELECT count(DISTINCT ${column})::int n FROM bi_schema.dim_asset WHERE ${column}=ANY($1::text[])`,[[...new Set(body.keys)]]);if(result.rows[0].n!==new Set(body.keys).size)throw new Error('INVALID_UNKNOWN_EQUIPMENT');}
-    return selection.save(body);
+    const result=selection.save(body);cache.clear();return result;
   }
   let closing;
-  return {snapshot,administration,saveSelection,close:()=>closing||= (async()=>{await pool.end();if(!selectionStore)selection.close();})()};
+  return {snapshot,administration,saveSelection,health:async()=>{await pool.query('SELECT 1');},close:()=>closing||= (async()=>{cache.clear();await pool.end();if(!selectionStore)selection.close();})()};
 }
-export function localDatabasePlugin(){
-  let database;
-  function configure(server){
-    database||=createLocalDatabase();
+export function registerDatabaseRoutes(server,database){
     server.middlewares.use('/api/analysis-selection',async(req,res)=>{
       res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json; charset=utf-8');
       try{
@@ -66,7 +77,9 @@ export function localDatabasePlugin(){
       try{res.end(JSON.stringify(await database.snapshot(new URL(req.url,'http://localhost').searchParams)));}
       catch(error){res.statusCode=error.message.startsWith('INVALID_')?400:503;res.end(JSON.stringify({error:res.statusCode===400?'Filtre ou page invalide.':'Connexion à PostgreSQL distant indisponible.'}));}
     });
-    server.httpServer?.once('close',()=>database.close());
-  }
+}
+export function localDatabasePlugin(){
+  let database;
+  function configure(server){database||=createLocalDatabase();registerDatabaseRoutes(server,database);server.httpServer?.once('close',()=>database.close());}
   return {name:'ukit-local-database',configureServer:configure,configurePreviewServer:configure,closeBundle:()=>database?.close()};
 }

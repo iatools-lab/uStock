@@ -2,7 +2,7 @@ import { elapsedDays } from '../domain/commercial.js';
 import { saleFacts, salesRanking, saleTrend } from '../domain/commercial-planning.js';
 import { territorySummary } from '../domain/director-views.js';
 import { Metrics, Period, Bars } from '../components/CommercialSummary.jsx';
-import { TrendChart } from '../components/Charts.jsx';
+import { TrendChart } from '../components/ApexCharts.jsx';
 import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import useStockFilters from '../navigation/useStockFilters.js';

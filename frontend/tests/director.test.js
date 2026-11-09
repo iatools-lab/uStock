@@ -5,7 +5,7 @@ import { networkPerformance } from '../src/domain/director.js';
 import { MENUS, ROLE_ROUTES } from '../src/navigation/menus.js';
 
 test('les menus des profils sont uniques et la carte respecte le périmètre demandé', () => {
-  assert.equal(MENUS.dg.length, 4);
+  assert.equal(MENUS.dg.length, 6);
   assert.equal(MENUS.supply.length, 7);
   assert.ok(!MENUS.supply.some(m => ['approvisionnements', 'receptions'].includes(m.path)));
   assert.ok(!MENUS.dg.some(m => ['risques', 'tracabilite'].includes(m.path)));

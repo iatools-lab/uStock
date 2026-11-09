@@ -23,7 +23,7 @@ try{
     const data=await(await response).json();
     await page.locator('.overview-meta').waitFor({state:'visible',timeout:60000});
     assert.equal(await page.locator('[data-live-view]').first().getAttribute('data-live-view'),view);
-    assert.equal(await page.getByRole('navigation',{name:'Navigation du profil'}).getByRole('link').count(),4);
+    assert.equal(await page.getByRole('navigation',{name:'Navigation du profil'}).getByRole('link').count(),6);
     assert.equal(await page.getByRole('navigation',{name:'Navigation du profil'}).locator('[aria-current="page"]').count(),1);
     return data;
   }
@@ -66,7 +66,7 @@ try{
   assert.ok(drilled.territories.rows.every(row=>row.key==='__central__'||drilled.options.regions.some(region=>region.value===row.key)));
   await page.getByRole('heading',{name:'Répartition par région',exact:true}).waitFor({timeout:60000});
   const mixButton=page.locator('.territory-mix-button').first();await mixButton.click();assert.ok(await page.getByRole('dialog').isVisible());
-  assert.ok(await page.locator('.product-mix-dialog .donut').isVisible());
+  await page.locator('.product-mix-dialog [data-chart-type="donut"] .apexcharts-canvas').waitFor({state:'visible',timeout:30000});
   assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden');
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({state:'hidden'});

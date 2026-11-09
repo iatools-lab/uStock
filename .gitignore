@@ -13,6 +13,7 @@ coverage/
 *.sqlite-*
 *.db
 backups/
+exports/
 *.dump
 *.sql.gz
 

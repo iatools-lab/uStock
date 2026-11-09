@@ -1,5 +1,5 @@
 export const LIVE_VIEWS = {
-  dg: { '':'overview', 'stock-national':'stock', carte:'map', performance:'performance' },
+  dg: { '':'overview', 'stock-national':'stock', carte:'map', performance:'performance', previsions:'forecast', analytique:'analytics' },
   dc: { '':'overview', disponibilite:'availability', carte:'map', reseau:'performance', couverture:'needs', risques:'quality', tracabilite:'assets' },
   supply: { '':'overview', stock:'stock', carte:'map', distribution:'needs', inventaires:'inventory', sav:'quality', journal:'assets' },
   am: { '':'overview', stock:'stock', boutiques:'actors', agents:'actors', transferts:'transfers', demandes:'needs', defauts:'quality', inventaires:'inventory', alertes:'alerts' },

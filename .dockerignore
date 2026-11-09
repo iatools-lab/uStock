@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/build
+**/.env
+**/.env.*
+**/*.sqlite*
+**/*.db
+**/*.log
+**/*.tsbuildinfo
+**/backups
+exports
+.git
+.codex
+.agents
+.aws

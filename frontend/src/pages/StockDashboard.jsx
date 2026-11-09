@@ -11,7 +11,7 @@ import DirectorMenus from './DirectorMenus.jsx';
 import { territorySummary } from '../domain/director-views.js';
 import StockMap from './StockMap.jsx';
 import HeaderFilters from '../components/HeaderFilters.jsx';
-import { ProductChart, StockBars, TrendChart } from '../components/Charts.jsx';
+import { ProductChart, StockBars, TrendChart } from '../components/ApexCharts.jsx';
 import { ROLE_LABELS, selectKits, selectInventories, summarize, groupStock, buildTrend } from '../domain/stock.js';
 
 const custody = [['central', 'Entrepôt central', Warehouse, '#001a70'], ['am', 'Area Managers', BriefcaseBusiness, '#3265b5'], ['shop', 'Boutiques', Store, '#73a4d9'], ['agent', 'Agents', UsersRound, '#fe5716']];

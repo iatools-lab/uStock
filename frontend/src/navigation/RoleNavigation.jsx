@@ -4,6 +4,7 @@ import { MENUS, ROLE_ROUTES } from './menus.js';
 
 const icons = {
   carte: MapPinned,
+  previsions: PackagePlus, analytique: Activity,
   '': BarChart3, 'stock-national': MapPinned, risques: ShieldCheck, tracabilite: Search, performance: TrendingUp, arbitrages: ClipboardCheck, rapports: FileText,
   disponibilite: Boxes, reseau: UsersRound, couverture: PackagePlus, ventes: ShoppingCart, 'stock-dormant': CalendarClock, alertes: Bell,
   distribution: ArrowLeftRight, stock: Boxes, approvisionnements: ShoppingCart, receptions: PackageCheck, transferts: ArrowLeftRight, detention: MapPinned, inventaires: ClipboardCheck,

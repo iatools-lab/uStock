@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { liveView } from '../domain/live-routing.js';
 import { LiveNationalStock, LiveStockMap, LivePerformance } from './LiveDirectorViews.jsx';
+import { LiveAnalytics, LiveForecast } from './LiveAnalytics.jsx';
 import RoleNavigation from '../navigation/RoleNavigation.jsx';
 import { Boxes, PackageCheck, CheckCircle2, AlertTriangle, Warehouse, BriefcaseBusiness, Store, UsersRound, PanelLeftClose, PanelLeftOpen, Filter, RefreshCw } from 'lucide-react';
 import { MENUS, ROLE_ROUTES } from '../navigation/menus.js';
-import { ProductChart } from '../components/Charts.jsx';
+import { ProductChart, BarChart } from '../components/ApexCharts.jsx';
 import { ROLE_LABELS } from '../domain/stock.js';
 import { loadSnapshot, quantity } from '../data/real-stock.js';
 import '../styles/real-stock.css';
@@ -13,7 +14,7 @@ import '../styles/real-stock.css';
 const text = value => value == null || value === '' ? 'Non renseigné' : String(value);
 const date = value => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Douala' }).format(new Date(value)) : 'Non renseigné';
 const todayInDouala = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Douala',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const filterKeys = ['date','startDate','endDate','product','region','zone','department','arrondissement','amId','shopId','holderId','holderKind','status','search'];
+const filterKeys = ['date','startDate','endDate','granularity','product','region','zone','department','arrondissement','amId','shopId','holderId','holderKind','status','search'];
 const missingSources = {
   needs: 'Les besoins exigent une règle de vente et de disponibilité validée, puis un historique commercial complet.',
   inventory: 'Les comptages physiques et leurs écarts ne figurent pas dans la base étudiée.',
@@ -47,7 +48,7 @@ export default function DataWorkspace({ role }) {
     latestParams.current=query;
     setParams(query);
   };
-  const updateFilters = patch => { setPage(1); setFilters(current => ({...current,...patch})); };
+  const updateFilters = patch => { setPage(1); const datesChanged=['date','startDate','endDate'].some(key=>key in patch); setFilters(current => ({...current,...patch,...(datesChanged?{granularity:'auto'}:{})})); };
   useEffect(() => { setPage(1); setOpened(null); }, [menu, view]);
   useEffect(() => {
     const controller = new AbortController();
@@ -61,7 +62,7 @@ export default function DataWorkspace({ role }) {
       finally { pending = false; }
     }
     refresh();
-    const timer = setInterval(refresh, 15000);
+    const timer = setInterval(refresh, ['analytics','forecast'].includes(view)?60000:15000);
     return () => { controller.abort(); clearInterval(timer); };
   }, [role, page, retry, filters, view, effectiveLevel, days]);
   const choosePeriod = kind => {
@@ -85,21 +86,23 @@ export default function DataWorkspace({ role }) {
       <section id="live-filters" hidden={!filtersOpen} className="panel filter-panel live-filters" aria-label="Filtres du stock">
         <label>Produit<select value={filters.product} onChange={e => { setPage(1); setFilters(f => ({...f, product:e.target.value})); }}><option value="">Tous les produits</option>{(data.options?.products || []).map(p => <option key={p.value} value={p.value}>{p.label || p.value}</option>)}</select></label>
         {[['zone','Zone','zones'],['region','Région','regions'],['department','Département','departments'],['arrondissement','Arrondissement','arrondissements'],['amId','Area manager','ams'],['shopId','Boutique','shops']].map(([field,label,option])=><label key={field}>{label}<select value={filters[field]} onChange={e=>updateFilters({[field]:e.target.value})}><option value="">Tous les lieux</option>{(data.options?.[option]||[]).map(item=><option key={item.value} value={item.value}>{item.label||item.value}</option>)}</select></label>)}
-        <label>État CRM<select value={filters.status} onChange={e => { setPage(1); setFilters(f => ({...f, status:e.target.value})); }}><option value="">Tous les états</option>{(data.statuses||[]).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>
+        {view!=='forecast'&&<label>État CRM<select value={filters.status} onChange={e => { setPage(1); setFilters(f => ({...f, status:e.target.value})); }}><option value="">Tous les états</option>{(data.statuses||[]).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>}
         <form onSubmit={e => { e.preventDefault(); setPage(1); setFilters(f => ({...f, search:new FormData(e.currentTarget).get('search')})); }}><label>Rechercher<input name="search" defaultValue={filters.search} placeholder="Numéro de série, produit, détenteur" maxLength={200} /></label><button type="submit">Rechercher</button></form>
       </section>
-      {filterKeys.some(key=>filters[key])&&<div className="live-filter-summary"><span>Périmètre filtré : {filterKeys.filter(key=>filters[key]).map(key=>filters[key]).join(' · ')}</span><button className="secondary-button" onClick={()=>{setPage(1);setFilters({});}}>Réinitialiser les filtres</button></div>}
+      {filterKeys.some(key=>filters[key]&&key!=='granularity'&&(view!=='forecast'||key!=='status'))&&<div className="live-filter-summary"><span>Périmètre filtré : {filterKeys.filter(key=>filters[key]&&key!=='granularity'&&(view!=='forecast'||key!=='status')).map(key=>filters[key]).join(' · ')}</span><button className="secondary-button" onClick={()=>{setPage(1);setFilters({});}}>Réinitialiser les filtres</button></div>}
       {reason ? <section className="panel"><h2>Informations à compléter</h2><p>{reason}</p></section> : <>
         {view === 'overview' && <><section className="overview-kpis" aria-label="Indicateurs réels">{[['total','Parc analysé',Boxes],['instock','En stock',PackageCheck],['deployed',data.period?.start?'Vendus sur la période':'Équipements déployés / vendus',CheckCircle2],['defective',data.period?.start?'Défauts sur la période':'Stock défectueux',AlertTriangle]].map(([key,label,Icon], index) => <article key={key} className={`overview-metric ${index === 0 ? 'overview-metric--primary' : ''}`}><div><span>{label}</span><Icon size={19} /></div><strong>{data.metrics[key].value == null ? '—' : quantity(data.metrics[key].value)}</strong></article>)}</section>
         <section className="panel custody-panel"><div className="custody-heading"><div><p className="eyebrow">Localisation du stock</p><h2>Où sont les kits ?</h2></div><span>{quantity(data.metrics.total.value)} équipements · dernier détenteur déclaré</span></div>
           <div className="custody-track" role="img" aria-label="Répartition du stock par détenteur">{data.custody.map((row,index) => <div key={row.key} style={{width:`${Number(data.metrics.total.value) ? Number(row.quantity)/Number(data.metrics.total.value)*100 : 0}%`,background:['#001a70','#3265b5','#73a4d9','#fe5716','#a5b0c0'][index%5]}} title={`${row.label} : ${quantity(row.quantity)}`} />)}</div>
           <div className="custody-grid">{data.custody.map(row => { const Icon = {central:Warehouse,am:BriefcaseBusiness,shop:Store,agent:UsersRound}[row.key] || Boxes; return <div className="custody-item" key={row.key}><span className="custody-icon"><Icon size={21}/></span><div><span>{row.label}</span><strong>{quantity(row.quantity)}</strong></div></div>; })}</div>
         </section>
-        <div className="overview-distribution"><section className="panel"><div className="panel__head"><div><h2>Répartition par région</h2></div></div><div className="bar-list">{(data.mapRegions||[]).map(row=><div className="stock-bar" key={row.key}><div className="bar-row__meta"><strong>{row.label}</strong><span>{quantity(row.quantity)} équipements</span></div><div className="bar-track"><i style={{width:`${Number(data.metrics.total.value)?Number(row.quantity)/Number(data.metrics.total.value)*100:0}%`}}/></div></div>)}</div></section><ProductChart rows={chartProducts(data.products)} title="Parc analysé par produit" unit="équipements" /></div>
+        <div className="overview-distribution"><BarChart title="Répartition par zone" rows={(data.mapZones||[]).map(r=>({...r,quantity:Number(r.quantity)}))} unit="équipements"/><ProductChart rows={chartProducts(data.products)} title="Parc analysé par produit" unit="équipements" /></div>
         </>}
         {view === 'stock' && <LiveNationalStock data={data} level={effectiveLevel} onLevel={setLevel} filters={filters} onFilter={updateFilters}/>}
         {view === 'map' && <LiveStockMap data={data} filters={filters} onFilter={updateFilters}/>}
         {view === 'performance' && <LivePerformance data={data} level={effectiveLevel} onLevel={setLevel} days={days} onDays={setDays}/>}
+        {view === 'forecast' && <LiveForecast data={data} granularity={filters.granularity||'auto'} onGranularity={value=>updateFilters({granularity:value})}/>}
+        {view === 'analytics' && <LiveAnalytics data={data} granularity={filters.granularity||'auto'} onGranularity={value=>updateFilters({granularity:value})}/>}
         {view === 'availability' && <div className="commercial-content" data-live-view="availability"><p className="notice"></p><div className="commercial-card-grid">{data.products.map(product=><article className="panel dc-availability-card" key={product.key}><h2>{product.label}</h2><dl><div><dt>Stock suivi</dt><dd>{quantity(product.quantity)}</dd></div><div><dt>En stock</dt><dd>{quantity(product.instock)}</dd><dt>Déployés / vendus</dt><dd>{quantity(product.deployed)}</dd><dt>Défectueux</dt><dd>{quantity(product.defective)}</dd></div></dl></article>)}</div></div>}
         {view === 'references' && <section className="panel" data-live-view="references"><h2>Répartition des lieux</h2><p>{quantity(data.mapping?.rows)} lignes géographiques exploitables dans le fichier Excel.</p><p>{quantity(data.mapping?.unmappedRegion)} équipements sans région certaine · {quantity(data.mapping?.unmappedZone)} sans zone certaine.</p><p>{quantity(data.mapping?.conflicts)} équipements avec un rattachement géographique en conflit.</p></section>}
         {view === 'quality' && <section className="panel"><h2>Équipements défectueux</h2><p>{quantity(data.metrics.defective.value)} équipements déclarés DEFECTIVE. Cet état ne prouve pas qu’un dossier SAV est ouvert.</p></section>}
@@ -110,8 +113,5 @@ export default function DataWorkspace({ role }) {
   </div></main></div></div>;
 }
 function chartProducts(rows) {
-  const result = rows.slice(0, 7).map(row => ({ id: row.key, name: row.label, active: Number(row.quantity) }));
-  if (rows.length > 7) result.push({ id: '__other__', name: 'Autres produits', active: rows.slice(7).reduce((sum,row) => sum + Number(row.quantity), 0) });
-  return result;
+  return rows.map(row => ({id:row.key,name:row.label,active:Number(row.quantity)}));
 }
-

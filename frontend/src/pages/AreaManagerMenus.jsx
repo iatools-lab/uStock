@@ -6,7 +6,7 @@ import { DEMO_AM, summarize, groupStock, locationLabel, isAvailable } from '../d
 import { commercialSales, elapsedDays } from '../domain/commercial.js';
 import { KitExplorer, InventoryTable } from '../components/StockTables.jsx';
 import KitHistory, { formatDate } from '../components/KitHistory.jsx';
-import { StockBars } from '../components/Charts.jsx';
+import { StockBars } from '../components/ApexCharts.jsx';
 import NationalStock from './NationalStock.jsx';
 import ServiceRisks from './ServiceRisks.jsx';
 import { Coverage } from './CommercialMenus.jsx';

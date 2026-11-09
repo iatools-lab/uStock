@@ -6,7 +6,7 @@ import { selectKits, summarize, isAvailable, groupStock, locationLabel, AS_OF } 
 import { commercialSales, salesSeries, coverageRows, allocationSuggestions, networkRows, commercialAlerts, elapsedDays, exportCommercial, csv } from '../domain/commercial.js';
 import { KitExplorer } from '../components/StockTables.jsx';
 import KitHistory from '../components/KitHistory.jsx';
-import { StockBars, TrendChart } from '../components/Charts.jsx';
+import { StockBars, TrendChart } from '../components/ApexCharts.jsx';
 
 const fmt = n => n === null ? 'Non calculable' : n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
 function Metrics({ items }) { return <div className="commercial-metrics">{items.map(([label, value, note]) => <article key={label}><span>{label}</span><strong>{typeof value === 'number' ? fmt(value) : value}</strong><small>{note}</small></article>)}</div>; }

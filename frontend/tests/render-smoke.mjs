@@ -16,7 +16,7 @@ try {
   const { default: StockDashboard } = await server.ssrLoadModule('/src/pages/StockDashboard.jsx');
   for (const route of Object.values(ROLE_ROUTES)) {
     const html = renderToString(React.createElement(MemoryRouter, { initialEntries: [route] }, React.createElement(RealApp)));
-    assert.ok(html.includes('Lecture directe de PostgreSQL local') && html.includes('Chargement des données'));
+    assert.ok(html.includes('Lecture directe de PostgreSQL distant') && html.includes('Chargement des données'));
     assert.ok(!html.includes('Voir la démonstration'));
     for (const marker of ['role-operations', 'app-shell', 'sidebar__brand', 'brand__tagline', 'main-content', 'topbar', 'filter-trigger']) assert.ok(html.includes(marker), `${route}: mise en page d’origine absente (${marker})`);
     assert.ok(!html.includes('real-workspace') && !html.includes('real-navigation'));
@@ -53,7 +53,7 @@ try {
       } else if (['dc', 'supply', 'am'].includes(role)) {
         assert.ok(html.includes('commercial-content'));
         assert.ok(!html.includes('Son contenu sera développé'));
-      } else {
+      } else if (!(role==='dg'&&['previsions','analytique'].includes(menu.path))) {
         assert.ok(html.includes('Son contenu sera développé'), `${route}: page future absente`);
         assert.ok(!html.includes('territory-card'), `${route}: contenu métier ajouté hors périmètre`);
       }

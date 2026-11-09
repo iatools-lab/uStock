@@ -1,7 +1,7 @@
 export const ROLE_ROUTES = { dg: '/directeur', dc: '/dc', supply: '/supply-chain', am: '/am', it: '/it' };
 const entries = rows => rows.map(([path, label]) => ({ path, label }));
 export const MENUS = {
-  dg: entries([['', 'Vue exécutive'], ['stock-national', 'Stock national'], ['carte', 'Carte du stock'], ['performance', 'Performance du réseau']]),
+  dg: entries([['', 'Vue exécutive'], ['stock-national', 'Stock national'], ['carte', 'Carte du stock'], ['performance', 'Performance du réseau'], ['previsions', 'Prévisions de besoins'], ['analytique', 'Analytique']]),
   dc: entries([['', 'Vue d’ensemble'], ['disponibilite', 'Stock et disponibilité'], ['carte', 'Carte du stock'], ['reseau', 'Performance'], ['couverture', 'Besoins de stock'], ['risques', 'SAV et kits endommagés'], ['tracabilite', 'Traçabilité des kits']]),
   supply: entries([['', 'Vue d’ensemble'], ['stock', 'Stock et détention'], ['carte', 'Carte du stock'], ['distribution', 'Distribution et besoins'], ['inventaires', 'Inventaires et écarts'], ['sav', 'SAV et kits endommagés'], ['journal', 'Traçabilité et justificatifs']]),
   am: entries([['', 'Vue d’ensemble'], ['stock', 'Mon stock'], ['boutiques', 'Mes boutiques'], ['agents', 'Mes agents'], ['transferts', 'Mes transferts'], ['demandes', 'Mes demandes de stock'], ['defauts', 'Défauts et retours'], ['inventaires', 'Inventaires et écarts'], ['alertes', 'Mes alertes et actions']]),
