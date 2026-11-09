@@ -5,6 +5,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { connection, parseConfig, settings } from '../../backend/scripts/bi/config.mjs';
 import { createSnapshotCache, snapshotKey } from './snapshot-cache.mjs';
+import { reportDatabaseFailure } from './database-diagnostics.mjs';
 
 export function configuration(overrides={}) {
   let existing = {}, local = {};
@@ -22,7 +23,7 @@ export function configuration(overrides={}) {
 }
 export function createLocalDatabase({selectionStore}={}) {
   const selection=selectionStore||openSelectionStore();
-  const pool = new pg.Pool(configuration()); pool.on('error',()=>{});
+  const pool = new pg.Pool(configuration()); pool.on('error',error=>reportDatabaseFailure('pool',error));
   pool.on('connect',client=>client.on('error',()=>{}));
   const ttl=Number(settings().UKIT_CACHE_TTL_SECONDS??60);
   if(!Number.isFinite(ttl)||ttl<0||ttl>3600)throw new Error('INVALID_CACHE_TTL');
@@ -75,7 +76,7 @@ export function registerDatabaseRoutes(server,database){
       res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json; charset=utf-8');
       if(req.method!=='GET'){res.statusCode=405;res.end('{"error":"Méthode non autorisée"}');return;}
       try{res.end(JSON.stringify(await database.snapshot(new URL(req.url,'http://localhost').searchParams)));}
-      catch(error){res.statusCode=error.message.startsWith('INVALID_')?400:503;res.end(JSON.stringify({error:res.statusCode===400?'Filtre ou page invalide.':'Connexion à PostgreSQL distant indisponible.'}));}
+      catch(error){res.statusCode=error.message.startsWith('INVALID_')?400:503;const failure=res.statusCode===503?reportDatabaseFailure('snapshot',error):null;res.end(JSON.stringify({error:res.statusCode===400?'Filtre ou page invalide.':'Connexion à PostgreSQL distant indisponible.',...(failure?{code:failure.code}:{})}));}
     });
 }
 export function localDatabasePlugin(){

@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { createLocalDatabase, registerDatabaseRoutes } from './local-database.mjs';
 import { settings } from '../../backend/scripts/bi/config.mjs';
 import { productionSelection } from './production-selection.mjs';
+import { reportDatabaseFailure } from './database-diagnostics.mjs';
 
 const compress=promisify(gzip);
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon','.json':'application/json','.woff2':'font/woff2','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
@@ -19,10 +20,11 @@ export function createProductionServer({database=createLocalDatabase({selectionS
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/healthz'||url.pathname==='/readyz'){
         res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json');
-        if(url.pathname==='/readyz'){try{await database.health();}catch{res.statusCode=503;res.end('{"status":"unavailable"}');return;}}
+        if(url.pathname==='/readyz'){try{await database.health();}catch(error){const failure=reportDatabaseFailure('readiness',error);res.statusCode=503;res.end(JSON.stringify({status:'unavailable',code:failure.code}));return;}}
         res.end('{"status":"ok"}');return;
       }
       const route=routes.find(r=>url.pathname===r.path);
+      if(url.pathname==='/favicon.ico'){res.statusCode=302;res.setHeader('Location','/favicon.svg');res.end();return;}
       if(route){
         if(req.method!=='GET'){res.statusCode=405;res.setHeader('Allow','GET');res.setHeader('Content-Type','application/json');res.end('{"error":"Production en lecture seule."}');return;}
         if(/\bgzip\b/.test(req.headers['accept-encoding']||'')){

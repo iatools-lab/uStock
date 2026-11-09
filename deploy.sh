@@ -5,7 +5,7 @@ umask 027
 # Apache reste sur l'hote. Seule l'application tourne dans Docker.
 DOMAIN="${DOMAIN:-ustock.upowa.org}"
 SERVER_IP="${SERVER_IP:-82.165.222.49}"
-UKIT_HTTP_PORT="${UKIT_HTTP_PORT:-3000}"
+UKIT_HTTP_PORT="${UKIT_HTTP_PORT:-3011}"
 UKIT_CACHE_TTL_SECONDS="${UKIT_CACHE_TTL_SECONDS:-60}"
 LE_EMAIL="${LE_EMAIL:-}"
 ENABLE_HTTPS="${ENABLE_HTTPS:-1}"
@@ -24,12 +24,15 @@ rollback_apache() {
   local status=$?
   trap - ERR
   if (( CONFIG_CHANGED )); then
-    if [[ -f "$BACKUP_DIR/$SITE" ]]; then
-      cp -p -- "$BACKUP_DIR/$SITE" "$SITE_PATH"
-    else
-      rm -f -- "$SITE_PATH"
-    fi
-    if (( ! SITE_WAS_ENABLED )); then a2dissite "$SITE" >/dev/null 2>&1 || true; fi
+    for saved in "$BACKUP_DIR"/*.conf; do
+      [[ ! -f "$saved" ]] || cp -p -- "$saved" "/etc/apache2/sites-available/$(basename "$saved")"
+    done
+    for marker in "$BACKUP_DIR"/*.absent; do
+      [[ -f "$marker" ]] || continue
+      name="$(basename "${marker%.absent}")"
+      a2dissite "$name" >/dev/null 2>&1 || true
+      rm -f -- "/etc/apache2/sites-available/$name"
+    done
     if apache2ctl configtest; then systemctl reload apache2 || true; fi
   fi
   printf '\n[ukit] Echec ligne %s. Les volumes Docker et les autres sites sont conserves.\n' "${BASH_LINENO[0]}" >&2
@@ -47,28 +50,14 @@ systemctl is-active --quiet apache2 || die 'Le service Apache2 doit deja etre ac
 apache2ctl configtest
 [[ -f "$PROJECT_DIR/backend/.env" ]] || die 'Copier les acces distants dans backend/.env avant de lancer ce script.'
 [[ -f "$PROJECT_DIR/frontend/server/Agents_Terrain_Uniformises.xlsx" ]] || die 'Le referentiel Excel des agents est absent.'
-if [[ -f "$SITE_PATH" ]] && ! grep -Fq '# Managed by ukit deploy.sh' "$SITE_PATH"; then
-  die "$SITE_PATH existe et n'est pas gere par ce script ; aucune modification effectuee."
-fi
-
 if [[ "$ENABLE_HTTPS" == 1 ]]; then
-  addresses="$(getent ahostsv4 "$DOMAIN" | awk '{print $1}' | sort -u)" || die "DNS absent : creer un enregistrement A $DOMAIN -> $SERVER_IP."
+  addresses="$(getent ahostsv4 "$DOMAIN" | awk '{print $1}' | sort -u)" || die "DNS absent : $DOMAIN -> $SERVER_IP."
   grep -Fxq "$SERVER_IP" <<< "$addresses" || die "Le DNS $DOMAIN ne pointe pas vers $SERVER_IP."
-  if [[ -z "$LE_EMAIL" ]]; then
-    read -r -p 'Adresse email pour le certificat HTTPS : ' LE_EMAIL
-  fi
-  [[ "$LE_EMAIL" == *@*.* ]] || die 'Adresse email requise pour le certificat HTTPS.'
 fi
-
-# Refuser d'ecraser silencieusement un VirtualHost gere ailleurs.
-while IFS= read -r existing; do
-  [[ -z "$existing" || "$existing" == "$SITE_PATH" || "$existing" == "/etc/apache2/sites-available/ukit-${DOMAIN}-le-ssl.conf" ]] && continue
-  die "Le domaine existe deja dans $existing. Integrer le proxy a ce VirtualHost avant de continuer."
-done < <(grep -El "^[[:space:]]*Server(Name|Alias)[[:space:]]+${DOMAIN//./\.}([[:space:]]|$)" /etc/apache2/sites-available/*.conf 2>/dev/null || true)
 
 log 'Installation des prerequis manquants.'
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg
+DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg python3
 if ! command -v docker >/dev/null; then
   # Depot Docker officiel, sans execution d'un script telecharge.
   . /etc/os-release
@@ -110,36 +99,19 @@ for ((attempt=0; attempt<60; attempt++)); do
   sleep 2
 done
 (( healthy )) || { "${COMPOSE[@]}" logs --tail=60 dashboard; die 'Le conteneur ne repond pas.'; }
-curl -fsS --max-time 15 "http://127.0.0.1:$UKIT_HTTP_PORT/readyz" >/dev/null || die 'Connexion PostgreSQL distante indisponible ; Apache reste inchange.'
+if ! curl -fsS --max-time 15 "http://127.0.0.1:$UKIT_HTTP_PORT/readyz"; then
+  "${COMPOSE[@]}" exec -T dashboard node server/diagnose.mjs || true
+  "${COMPOSE[@]}" logs --tail=40 dashboard
+  die 'Connexion PostgreSQL distante indisponible ; consulter le diagnostic ci-dessus. Apache reste inchange.'
+fi
 
 log 'Configuration du VirtualHost Apache dedie.'
 BACKUP_DIR="$PROJECT_DIR/backend/backups/apache/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p -- "$BACKUP_DIR"
-[[ ! -f "$SITE_PATH" ]] || cp -p -- "$SITE_PATH" "$BACKUP_DIR/$SITE"
-[[ ! -e "/etc/apache2/sites-enabled/$SITE" ]] || SITE_WAS_ENABLED=1
 a2enmod proxy proxy_http headers ssl rewrite
-# Ne pas reecrire le fichier apres Certbot : sa redirection HTTPS doit rester en place.
-if [[ ! -f "$SITE_PATH" ]]; then
-  CONFIG_CHANGED=1
-  cat > "$SITE_PATH" <<APACHE
-# Managed by ukit deploy.sh
-<VirtualHost *:80>
-    ServerName $DOMAIN
-    ProxyRequests Off
-    ProxyPreserveHost On
-    ProxyTimeout 120
-    RequestHeader set X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"
-    ProxyPass / http://127.0.0.1:$UKIT_HTTP_PORT/ connectiontimeout=5 timeout=120
-    ProxyPassReverse / http://127.0.0.1:$UKIT_HTTP_PORT/
-    ErrorLog \${APACHE_LOG_DIR}/ukit-error.log
-    CustomLog \${APACHE_LOG_DIR}/ukit-access.log combined
-</VirtualHost>
-APACHE
-elif ! grep -Fq "http://127.0.0.1:$UKIT_HTTP_PORT/" "$SITE_PATH"; then
-  die "Le port du VirtualHost existant differe. Adapter $SITE_PATH avant de relancer."
-fi
 CONFIG_CHANGED=1
-a2ensite "$SITE"
+python3 "$PROJECT_DIR/apache/configure_proxy.py" --domain "$DOMAIN" --port "$UKIT_HTTP_PORT" --backup "$BACKUP_DIR" > "$BACKUP_DIR/sites.txt"
+while IFS= read -r site; do a2ensite "$site"; done < "$BACKUP_DIR/sites.txt"
 apache2ctl configtest
 systemctl reload apache2
 CONFIG_CHANGED=0
@@ -148,7 +120,13 @@ curl -fsS --max-time 15 -H "Host: $DOMAIN" "http://127.0.0.1/healthz" >/dev/null
 if [[ "$ENABLE_HTTPS" == 1 ]]; then
   log 'Activation HTTPS et renouvellement automatique.'
   DEBIAN_FRONTEND=noninteractive apt-get install -y certbot python3-certbot-apache
-  certbot --apache --non-interactive --agree-tos --email "$LE_EMAIL" --redirect --keep-until-expiring --cert-name "$DOMAIN" -d "$DOMAIN"
+  if [[ -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" && -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]]; then
+    log 'Certificat existant conserve ; aucune adresse email demandee.'
+  else
+    EMAIL_ARGS=(--register-unsafely-without-email)
+    [[ -z "$LE_EMAIL" ]] || EMAIL_ARGS=(--email "$LE_EMAIL")
+    certbot --apache --non-interactive --agree-tos "${EMAIL_ARGS[@]}" --redirect --keep-until-expiring --cert-name "$DOMAIN" -d "$DOMAIN"
+  fi
   apache2ctl configtest
   systemctl reload apache2
   systemctl enable --now certbot.timer
