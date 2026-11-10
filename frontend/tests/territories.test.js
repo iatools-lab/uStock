@@ -1,11 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadTerritories, loadAgentAssignments, locateAgent, mapAgents, enrichAgentNetwork } from '../server/territories.mjs';
+import { loadTerritories, loadAgentAssignments, parseAgentAssignments, locateAgent, mapAgents, enrichAgentNetwork } from '../server/territories.mjs';
 import { liveView } from '../src/domain/live-routing.js';
 import { MENUS } from '../src/navigation/menus.js';
 import { territoryPlace } from '../server/stock-query.mjs';
 
 const rows=await loadTerritories();
+test('les matricules AM explicites sont conservés même si la zone géographique diffère',()=>{
+  const assignments=new Map([['A',{zone:'Zone 1',managerId:'M3'}]]);
+  const result=mapAgents([{agent_number:'A',role:'BA+'},{agent_number:'M1',role:'AREA MANAGER',entity_name:'Zone 1'},{agent_number:'M3',role:'AREA MANAGER',entity_name:'Zone 3'}],rows,assignments);
+  const a=result.find(r=>r.agent_number==='A');assert.equal(a.zone,'Zone 1');assert.equal(a.amId,'M3');
+  enrichAgentNetwork(result,[]);assert.equal(a.amId,'M3');
+});
+test('un agent du fichier absent du CRM reste localisable sans créer de kit',()=>{
+  const assignments=new Map([['REF',{zone:'Zone 3',region:'LITTORAL',identity:{name:'Agent fichier',role:'BA+'}}]]);
+  const result=mapAgents([],rows,assignments);assert.equal(result.length,1);assert.equal(result[0].agent_number,'REF');assert.equal(result[0].zone,'Zone 3');assert.equal(result[0].in_crm,false);
+});
+test('les doublons de hiérarchie et les conflits de nom ne produisent pas un AM arbitraire',()=>{
+  const book=[{sheet:'Agents_uniformises',data:[['Agent Number'],['A','Agent','BA+','Zone 1'],['B','Autre','BA+','Zone 1']]},{sheet:'Informations_complementaires',data:[['Agent Number'],['A',null,null,null,null,'M1'],['A',null,null,null,null,'M2'],['B',null,null,null,null,'M1']]},{sheet:'Conflits_a_verifier',data:[['Agent Number'],['B','Conflit de nom']]}];
+  const assignments=parseAgentAssignments(book);assert.equal(assignments.get('A').managerId,undefined);assert.equal(assignments.get('B').managerId,undefined);
+});
 test('la V2 distingue les responsables des zones 2 et 3',async()=>{
   const assignments=await loadAgentAssignments();
   assert.equal(assignments.get('UP2402A057').zone,'Zone 2');
@@ -25,7 +39,7 @@ test('les circuits contradictoires et les entrepôts ne fournissent pas de lieu 
 });
 test('le référentiel agents applique une seule affectation par identifiant et conserve les rôles CRM',async()=>{
   const assignments=await loadAgentAssignments();
-  assert.equal(assignments.size,2180);
+  assert.equal(assignments.size,2543);
   const [agent]=mapAgents([{agent_number:'UP2408A030',agent_name:'Agent CRM',role:'BA+',location_region:'EST',location_arrondissement:'BATOURI'}],rows,assignments);
   assert.equal(agent.zone,'Zone 3');assert.equal(agent.region,'SUD');assert.equal(agent.arrondissement,'MVENGUE');
   assert.equal(agent.role,'BA+');assert.equal(agent.agent_name,'Agent CRM');assert.equal(agent.method,'agent_workbook');assert.equal(agent.conflict,true);

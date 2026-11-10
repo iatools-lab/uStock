@@ -40,7 +40,8 @@ export function territoryPlace(row,level,byId){
   return label?{key:row[level],label}:null;
 }
 export async function queryStock(c,params,selection={rules:[],revision:0}){
-  const page=Number(params.get('page')||1),days=Number(params.get('days')||90),role=params.get('role')||'dg',level=params.get('level')||'zone',view=params.get('view')||'overview';
+  const page=Number(params.get('page')||1),days=Number(params.get('days')||90),role=params.get('role')||'dg',view=params.get('view')||'overview';
+  const level=view==='performance'?'zone':params.get('level')||'zone';
   if(view==='forecast'){params=new URLSearchParams(params);params.delete('status');}
   if(!Number.isSafeInteger(page)||page<1||page>100000||![30,60,90,180,365].includes(days)||!GROUPS[level]||!['dg','dc','supply','am','it'].includes(role))throw new Error('INVALID_REQUEST');
   for(const [,value] of params)if(value.length>200)throw new Error('INVALID_FILTER');
@@ -141,7 +142,7 @@ export async function queryStock(c,params,selection={rules:[],revision:0}){
     const start=`(($1::date+1-$${values.length+1}::int)::timestamp AT TIME ZONE 'Africa/Douala')`,end=`(($1::date+1)::timestamp AT TIME ZONE 'Africa/Douala')`;
     const events=(await c.query(`WITH selected AS (${source}) SELECT s.holder_id,s.routing_shop_id,max(s.holder_name) AS holder_name,s.product_reference,max(s.product_name) AS product_name,s.status,count(*)::int AS quantity FROM selected s JOIN bi_schema.dim_asset asset USING(serial_number) JOIN bi_schema.fct_asset_lifecycle life USING(serial_number) WHERE s.status='DEPLOYED' AND ${firstSaleInPeriodSQL('asset','life',start,end)} GROUP BY s.holder_id,s.routing_shop_id,s.product_reference,s.status`,[...values,performanceDays])).rows.map(decorate).filter(row=>matchesGroup(row,params));
     const results=new Map();
-    const get=row=>{const key=row[level]||'__unknown__';if(!results.has(key))results.set(key,{key,label:level==='holderId'?row.holderName||'Non renseigné':level==='amId'?byId.get(row.amId)?.agent_name||'Non renseigné':level==='shopId'?byId.get(row.shopId)?.agent_name||'Non renseigné':row[level]||'Non renseigné',active:0,defective:0,deployments:0});return results.get(key);};
+    const get=row=>{const place=territoryPlace(row,'zone',byId)||{key:'__unknown__',label:'Zone non renseignée'};if(!results.has(place.key))results.set(place.key,{...place,active:0,defective:0,deployments:0});return results.get(place.key);};
     for(const row of scoped)if(row.in_crm&&ACTIVE.has(row.status)){const target=get(row);target.active+=row.quantity;if(row.status==='DEFECTIVE')target.defective+=row.quantity;}
     for(const row of events)get(row).deployments+=row.quantity;
     performance={days:performanceDays,rows:[...results.values()].sort((a,b)=>b.deployments-a.deployments),note:`Premières ventes validées Upya sur ${performanceDays} jours jusqu’au ${asOfDate}, attribuées au vendeur. Chaque kit est compté une seule fois.`};

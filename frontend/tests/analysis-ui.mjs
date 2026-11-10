@@ -24,6 +24,7 @@ try{
     await page.goto(origin+path);
     const data=await(await response).json();
     await page.locator(`[data-live-view="${view}"]`).last().waitFor({timeout:90000});
+    console.log(`Vue ${view} chargée.`);
     return data;
   }
   const data=await visit('/directeur/previsions?startDate=2026-10-01&endDate=2026-10-31','forecast');
@@ -45,10 +46,11 @@ try{
     assert.equal(await page.getByRole('tab',{name:title,exact:true}).getAttribute('aria-selected'),'true');
     await page.locator('.live-analysis .apexcharts-canvas').nth(1).waitFor();
   }
-  await page.getByLabel('Horizon de prévision',{exact:true}).selectOption('30');
-  await page.getByLabel('Marge de sécurité',{exact:true}).selectOption('7');
+  assert.equal(await page.getByLabel('Horizon de prévision',{exact:true}).count(),0);
+  assert.equal(await page.getByLabel('Marge de sécurité',{exact:true}).count(),0);
+  assert.equal(await page.locator('.live-analysis select').count(),0);
   const analyticsData=await visit('/directeur/analytique?startDate=2026-10-01&endDate=2026-10-31','analytics');
-  const expand=page.getByRole('button',{name:'Agrandir : Évolution des ventes par région',exact:true});
+  const expand=page.getByRole('button',{name:'Agrandir : Quelles zones gagnent ou perdent des ventes ?',exact:true});
   await expand.click();
   const detail=page.locator('.chart-detail-dialog');
   await detail.waitFor();
@@ -61,7 +63,7 @@ try{
   const csvResponse=page.waitForEvent('download');
   await detail.locator('.apexcharts-menu .exportCSV').click();
   const download=await csvResponse;assert.ok(download.suggestedFilename().endsWith('.csv'));assert.equal(await download.failure(),null);
-  const regions=new Set(analyticsData.analysis.rows.filter(r=>r.status==='DEPLOYED').map(r=>r.region||'__unknown__'));
+  const regions=new Set(analyticsData.analysis.rows.filter(r=>r.status==='DEPLOYED').map(r=>r.zone||'__unknown__'));
   assert.equal(await detail.locator('.chart-legend button').count(),regions.size);
   assert.equal(await detail.locator('thead th').count(),regions.size+1);
   assert.ok(!(await detail.locator('.chart-legend').innerText()).includes('Autres'));
@@ -70,21 +72,24 @@ try{
   await detail.getByRole('button',{name:'Tout afficher',exact:true}).click();
   await detail.locator('.apexcharts-canvas').waitFor();
   await page.waitForFunction(n=>document.querySelectorAll('.chart-detail-dialog .apexcharts-line-series .apexcharts-series').length===n,regions.size);
-  await detail.getByLabel('Rechercher une série').fill('CENTRE');
+  await detail.getByLabel('Rechercher une série').fill('Zone 1');
   assert.equal(await detail.locator('.chart-legend button').count(),1);
   await page.keyboard.press('Escape');
   await detail.waitFor({state:'hidden'});
   assert.equal(await expand.evaluate(e=>e===document.activeElement),true);
   assert.equal(analyticsData.analysis.months.length,31);
   const monthResponse=page.waitForResponse(r=>r.url().includes('granularity=month')&&r.status()===200,{timeout:90000});
+  await page.getByRole('button',{name:/^Filtres/}).click();
   await page.getByLabel('Pas de temps',{exact:true}).selectOption('month');
   const monthly=await(await monthResponse).json();assert.equal(monthly.analysis.months.length,1);
   assert.equal(monthly.analysis.rows.filter(r=>r.status==='DEPLOYED').reduce((n,r)=>n+r.quantity,0),analyticsData.analysis.rows.filter(r=>r.status==='DEPLOYED').reduce((n,r)=>n+r.quantity,0));
+  await page.getByRole('button',{name:'Fermer les filtres',exact:true}).click();
+  await page.getByText('Voir les chiffres de la période',{exact:true}).click();
   await page.getByRole('heading',{name:'Récapitulatif mensuel',exact:true}).waitFor();
 
   for(const title of ['Lieu','Kit','État']){
     await page.getByRole('tab',{name:title,exact:true}).click();
-    await page.locator('.live-analysis .apexcharts-canvas').nth(2).waitFor();
+    await page.locator('.live-analysis .apexcharts-canvas').nth(1).waitFor();
     assert.ok(await page.getByRole('heading',{name:'Récapitulatif mensuel'}).isVisible());
   }
   await page.setViewportSize({width:390,height:844});
@@ -92,6 +97,9 @@ try{
   assert.equal(await page.locator('.analysis-grid').evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length),1);
   await page.setViewportSize({width:1440,height:1000});
   const stock=await visit('/directeur/stock-national','stock');
+  assert.deepEqual(await page.locator('.distribution-controls .level-tabs button').allTextContents(),['Zone','Area manager','Détenteur']);
+  assert.ok(!(await page.locator('main').innerText()).includes('Situation au'));
+
   await page.locator('.territory-mix-button').first().click();
   await page.getByRole('dialog').waitFor();
   await page.locator('.product-mix-dialog [data-chart-type="donut"] .apexcharts-canvas').waitFor({state:'visible',timeout:30000});
@@ -102,6 +110,12 @@ try{
   assert.ok(await page.locator('.product-mix-dialog').isVisible());
   const place=await page.locator('#product-mix-title').textContent();
   assert.equal(await page.locator('.product-state-table tbody tr').count(),new Set(stock.territories.rows.filter(r=>r.label===place).map(r=>r.productReference)).size);
+  await visit('/directeur/performance?startDate=2026-10-01&endDate=2026-10-31','performance');
+  await page.getByRole('heading',{name:'Résultats par zone',exact:true}).waitFor();
+  assert.equal(await page.locator('.director-menu-content[data-live-view=performance] select').count(),0);
+  assert.ok(await page.locator('.zone-performance-card').count()>0);
+  assert.ok(!(await page.locator('main').innerText()).includes('Situation au'));
+  if(process.env.UKIT_REVIEW_SCREENSHOT)await page.screenshot({path:process.env.UKIT_REVIEW_SCREENSHOT,fullPage:true});
   assert.deepEqual(errors,[]);
   console.log('Chrome : prévisions, totaux des trois dimensions, horizon, onglets analytiques, mobile et mix par état vérifiés sur la base distante.');
 }finally{

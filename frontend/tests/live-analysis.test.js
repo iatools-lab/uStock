@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAnalysis, analysisWindow } from '../server/analytics.mjs';
-import { forecastNeeds, monthlySeries, needsMatrix } from '../src/domain/live-analysis.js';
+import { forecastNeeds, monthlySeries, needsMatrix, stateEvolution } from '../src/domain/live-analysis.js';
 
 const window={start:'2026-10-01',end:'2026-10-30',days:30};
+test('la courbe stratégique de stock conserve les situations de fin de période sans les cumuler',()=>{
+  const a={months:['2026-09','2026-10'],rows:[{month:'2026-09',status:'INSTOCK',quantity:50},{month:'2026-10',status:'INSTOCK',quantity:20},{month:'2026-10',status:'DEPLOYED',quantity:30},{month:'2026-10',status:'INSTOCK',quantity:5}]};
+  assert.deepEqual(stateEvolution(a,'INSTOCK').data,[{month:'2026-09',value:50},{month:'2026-10',value:25}]);
+});
 const row=(product,status,quantity,region='CENTRE',amId='AM1',month='2026-10')=>({product,productName:product,status,quantity,region,amId,zone:'Zone 1',month});
 
 test('un surplus de produit ou de territoire ne masque pas un besoin',()=>{

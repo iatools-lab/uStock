@@ -44,3 +44,9 @@ export function needsMatrix(forecast){
   const rows=[...byPlace.values()].map(r=>{const values=products.map(p=>r.values.get(p)||0);return [r.label,...values,values.reduce((n,v)=>n+v,0)];});
   return {products,rows,totals:['Total',...products.map((_,i)=>rows.reduce((n,r)=>n+r[i+1],0)),forecast.totals.need]};
 }
+
+export function stateEvolution(analysis,status){
+  const totals=new Map(analysis.months.map(month=>[month,0]));
+  for(const r of analysis.rows)if(r.status===status&&totals.has(r.month))totals.set(r.month,totals.get(r.month)+r.quantity);
+  return {data:[...totals].map(([month,value])=>({month,value})),series:[{key:'value',label:STATE_LABELS[status]}]};
+}

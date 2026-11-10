@@ -11,7 +11,12 @@ let agentWorkbook;
 export async function loadAgentAssignments(){
   const file=new URL('./Agents_Terrain_Uniformises.xlsx',import.meta.url),info=await stat(file);
   if(agentWorkbook?.mtime===info.mtimeMs)return agentWorkbook.assignments;
-  const book=await readXlsxFile(fileURLToPath(file)),data=book.find(sheet=>sheet.sheet==='Agents_uniformises')?.data;
+  const book=await readXlsxFile(fileURLToPath(file));
+  const assignments=parseAgentAssignments(book);
+  agentWorkbook={mtime:info.mtimeMs,assignments};return assignments;
+}
+export function parseAgentAssignments(book){
+  const data=book.find(sheet=>sheet.sheet==='Agents_uniformises')?.data;
   if(!data||normalize(data[0]?.[0])!=='AGENT NUMBER')throw new Error('INVALID_AGENT_MAPPING');
   const grouped=new Map();
   for(const row of data.slice(1)){const id=clean(row[0]);if(!id)continue;const list=grouped.get(id)||[];list.push(row);grouped.set(id,list);}
@@ -19,9 +24,17 @@ export async function loadAgentAssignments(){
   for(const [id,list] of grouped){
     // Les doublons contradictoires ne sont jamais départagés par l'ordre du fichier.
     const fields=[3,4,5,6].map(index=>{const values=[...new Set(list.map(r=>clean(r[index])).filter(Boolean))];return values.length===1?values[0]:null;});
-    assignments.set(id,{zone:fields[0],region:fields[1],department:fields[2],arrondissement:fields[3]});
+    const names=[...new Set(list.map(r=>clean(r[1])).filter(Boolean))],roles=[...new Set(list.map(r=>clean(r[2])).filter(Boolean))];
+    assignments.set(id,{zone:fields[0],region:fields[1],department:fields[2],arrondissement:fields[3],identity:{name:names.length===1?names[0]:null,role:roles.length===1?roles[0]:null}});
   }
-  agentWorkbook={mtime:info.mtimeMs,assignments};return assignments;
+  const conflicts=new Set((book.find(s=>s.sheet==='Conflits_a_verifier')?.data||[]).slice(1).filter(row=>normalize(row[1]).includes('CONFLIT DE NOM')).map(row=>clean(row[0])));
+  const hierarchy=new Map();
+  for(const row of (book.find(s=>s.sheet==='Informations_complementaires')?.data||[]).slice(1)){
+    const id=clean(row[0]),manager=clean(row[5]);if(!id||!manager||conflicts.has(id))continue;
+    const list=hierarchy.get(id)||new Set();list.add(manager);hierarchy.set(id,list);
+  }
+  for(const [id,list] of hierarchy)if(assignments.has(id)&&list.size===1)assignments.get(id).managerId=[...list][0];
+  return assignments;
 }
 export async function loadTerritories() {
   const file = new URL('./Agents_Terrain_Uniformises.xlsx', import.meta.url);
@@ -84,9 +97,13 @@ export function locateAgent(agent, rows) {
 }
 const mappingCache = new WeakMap();
 export function attachManagers(mapped){
+  const byId=new Map(mapped.map(agent=>[agent.agent_number,agent]));
   const managers=new Map();
   for(const agent of mapped.filter(a=>a.holderKind==='am'&&a.zone&&a.is_active!==false)){const list=managers.get(agent.zone)||[];list.push(agent);managers.set(agent.zone,list);}
-  for(const agent of mapped)agent.amId=agent.holderKind==='am'?agent.agent_number:managers.get(agent.zone)?.length===1?managers.get(agent.zone)[0].agent_number:null;
+  for(const agent of mapped){
+    const explicit=byId.get(agent.declaredAmId);
+    agent.amId=agent.holderKind==='am'?agent.agent_number:explicit?.holderKind==='am'?explicit.agent_number:managers.get(agent.zone)?.length===1?managers.get(agent.zone)[0].agent_number:null;
+  }
   return mapped;
 }
 export function enrichAgentNetwork(agents,links){
@@ -111,6 +128,8 @@ export function enrichAgentNetwork(agents,links){
   return attachManagers(agents);
 }
 export function mapAgents(agents, rows, assignments=new Map()) {
+  const known=new Set(agents.map(a=>a.agent_number));
+  agents=[...agents,...[...assignments].filter(([id])=>!known.has(id)).map(([id,assignment])=>({agent_number:id,agent_name:assignment.identity?.name,role:assignment.identity?.role,in_crm:false,team:'[]',referenceOnly:true}))];
   let cache=mappingCache.get(rows);if(!cache){cache=new Map();mappingCache.set(rows,cache);}
   const mapped=agents.map(agent=>{
     const key=JSON.stringify([agent.role,agent.location_arrondissement,agent.location_commune,agent.location_village,agent.location_zone,agent.location_district,agent.location_region,agent.entity_name,['ADMINISTRATOR','POINT RELAIS','SAV'].includes(normalize(agent.role))?agent.agent_name:null]);
@@ -118,12 +137,12 @@ export function mapAgents(agents, rows, assignments=new Map()) {
     const assigned=assignments.get(agent.agent_number);
     if(!assigned)return {...agent,...location};
     const canonical=(value,field)=>{if(!value)return null;const matches=[...new Set(rows.filter(r=>normalize(r[field])===normalize(value)).map(r=>r[field]))];return matches.length===1?matches[0]:value;};
-    const declared=Object.fromEntries(Object.entries(assigned).filter(([,v])=>v).map(([field,value])=>[field,canonical(value,field)]));
+    const declared=Object.fromEntries(['zone','region','department','arrondissement'].filter(field=>assigned[field]).map(field=>[field,canonical(assigned[field],field)]));
     const inferred=locateAgent({...agent,location_arrondissement:assigned.arrondissement||null,location_commune:null,location_zone:null,location_village:null,location_district:assigned.department||null,location_region:assigned.region||null,entity_name:assigned.zone||null},rows);
     const geo={...location};
     for(const field of ['region','department','arrondissement','zone'])if(inferred[field])geo[field]=inferred[field];
     const conflict=location.conflict||Object.entries(declared).some(([field,value])=>location[field]&&normalize(location[field])!==normalize(value));
-    return {...agent,...geo,...declared,method:Object.keys(declared).length?'agent_workbook':location.method,conflict:Boolean(conflict)};
+    return {...agent,...geo,...declared,declaredAmId:assigned.managerId||null,method:Object.keys(declared).length?'agent_workbook':location.method,conflict:Boolean(conflict)};
   });
   const byId=new Map(mapped.map(agent=>[agent.agent_number,agent]));
   const shopLinks=new Map();
