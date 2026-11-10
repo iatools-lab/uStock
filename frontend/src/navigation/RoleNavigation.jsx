@@ -1,11 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { BarChart3, MapPinned, TrendingUp, Activity, PackagePlus } from 'lucide-react';
+import { BarChart3, MapPinned, TrendingUp, Activity, PackagePlus, Boxes } from 'lucide-react';
 import { MENUS, ROLE_ROUTES } from './menus.js';
 
 const icons = {
   carte: MapPinned,
   previsions: PackagePlus, analytique: Activity,
-  '': BarChart3, 'stock-national': MapPinned, performance: TrendingUp
+  '': BarChart3, 'stock-national': Boxes, performance: TrendingUp
 };
 export default function RoleNavigation({ role }) {
   const { search } = useLocation();
