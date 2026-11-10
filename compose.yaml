@@ -7,8 +7,10 @@ services:
       - "127.0.0.1:${UKIT_HTTP_PORT:-3011}:3000"
     environment:
       UKIT_CACHE_TTL_SECONDS: ${UKIT_CACHE_TTL_SECONDS:-60}
+      UKIT_SELECTION_FILE: /app/selection/analysis-selection.sqlite
     volumes:
       - ./backend/.env:/app/backend/.env:ro
+      - analysis-selection:/app/selection
     read_only: true
     tmpfs:
       - /tmp
@@ -22,4 +24,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  analysis-selection:
 

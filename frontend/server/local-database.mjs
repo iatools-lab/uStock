@@ -57,7 +57,7 @@ export function createLocalDatabase({selectionStore}={}) {
     const result=selection.save(body);cache.clear();return result;
   }
   let closing;
-  return {snapshot,administration,saveSelection,health:async()=>{await pool.query('SELECT 1');},close:()=>closing||= (async()=>{cache.clear();await pool.end();if(!selectionStore)selection.close();})()};
+  return {snapshot,administration,saveSelection,health:async()=>{await pool.query('SELECT 1');},close:()=>closing||= (async()=>{cache.clear();await pool.end();selection.close();})()};
 }
 export function registerDatabaseRoutes(server,database){
     server.middlewares.use('/api/analysis-selection',async(req,res)=>{

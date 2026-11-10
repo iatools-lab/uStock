@@ -26,7 +26,7 @@ export function createProductionServer({database=createLocalDatabase({selectionS
       const route=routes.find(r=>url.pathname===r.path);
       if(url.pathname==='/favicon.ico'){res.statusCode=302;res.setHeader('Location','/favicon.svg');res.end();return;}
       if(route){
-        if(req.method!=='GET'){res.statusCode=405;res.setHeader('Allow','GET');res.setHeader('Content-Type','application/json');res.end('{"error":"Production en lecture seule."}');return;}
+        if(req.method!=='GET'&&!(url.pathname==='/api/analysis-selection'&&req.method==='POST')){res.statusCode=405;res.setHeader('Allow',url.pathname==='/api/analysis-selection'?'GET, POST':'GET');res.setHeader('Content-Type','application/json');res.end('{"error":"Méthode non autorisée."}');return;}
         if(/\bgzip\b/.test(req.headers['accept-encoding']||'')){
           const end=res.end.bind(res);
           res.end=body=>{
