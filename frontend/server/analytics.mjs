@@ -20,11 +20,11 @@ export function buildAnalysis(rows,window){
   for(let d=new Date(daily?window.start:window.start.slice(0,7)+'-01');d.toISOString().slice(0,10)<=window.end;daily?d.setUTCDate(d.getUTCDate()+1):d.setUTCMonth(d.getUTCMonth()+1))months.push(d.toISOString().slice(0,daily?10:7));
   const buckets=new Map();
   const metrics=['quantity','ageUnder30','age30to59','age60to89','age90plus','ageUnknown'];
-  for(const row of rows){const key=JSON.stringify([row.month,row.product,row.status,row.region,row.zone,row.amId]);if(!buckets.has(key))buckets.set(key,{...row,...Object.fromEntries(metrics.map(k=>[k,0]))});for(const metric of metrics)buckets.get(key)[metric]+=Number(row[metric]||0);}
+  for(const row of rows){const key=JSON.stringify([row.month,row.product,row.status,row.region,row.zone,row.amId,row.holderId]);if(!buckets.has(key))buckets.set(key,{...row,...Object.fromEntries(metrics.map(k=>[k,0]))});for(const metric of metrics)buckets.get(key)[metric]+=Number(row[metric]||0);}
   return {window,months,rows:[...buckets.values()]};
 }
 
-export async function queryAnalysis(c,{params,selection,asOfDate,view,decorate,matchesGroup}){
+export async function queryAnalysis(c,{params,selection,asOfDate,view,decorate,matchesGroup,salesOnly=false,includeActors=false}){
   const window=analysisWindow(params,asOfDate,view);
   const step=window.granularity==='day'?'day':'month',format=step==='day'?'YYYY-MM-DD':'YYYY-MM';
   const values=[window.start,window.end];
@@ -49,7 +49,7 @@ export async function queryAnalysis(c,{params,selection,asOfDate,view,decorate,m
   ), months AS (
     SELECT m,least((m+interval '1 ${step}') AT TIME ZONE 'Africa/Douala',($2::date+1)::timestamp AT TIME ZONE 'Africa/Douala') AS cutoff
     FROM generate_series(date_trunc('${step}',$1::date::timestamp),date_trunc('${step}',$2::date::timestamp),interval '1 ${step}') m
-    ${view==='forecast'?`WHERE m=date_trunc('${step}',$2::date::timestamp)`:''}
+    ${salesOnly?'WHERE false':view==='forecast'?`WHERE m=date_trunc('${step}',$2::date::timestamp)`:''}
   ), snapshots AS (
     SELECT DISTINCT ON (m.m,a.serial_number) to_char(m.m,'${format}') AS month,a.*,h.asset_status,
       CASE WHEN h.holder_category='AGENT' THEN h.holder_id END AS holder_id,
@@ -68,6 +68,6 @@ export async function queryAnalysis(c,{params,selection,asOfDate,view,decorate,m
     count(*) FILTER(WHERE status='INSTOCK' AND age_days>=90)::int AS "age90plus",
     count(*) FILTER(WHERE status='INSTOCK' AND age_days IS NULL)::int AS "ageUnknown"
     FROM combined GROUP BY month,product_reference,status,holder_id,routing_shop_id`;
-  const rows=(await c.query(sql,values)).rows.map(decorate).filter(row=>matchesGroup(row,params)).map(row=>({month:row.month,product:row.productReference||'__unknown__',productName:row.product_name||row.productReference||'Produit non renseigné',status:row.status,quantity:row.quantity,region:row.region||null,zone:row.zone||null,amId:row.amId||null,...Object.fromEntries(['ageUnder30','age30to59','age60to89','age90plus','ageUnknown'].map(k=>[k,Number(row[k]||0)]))}));
+  const rows=(await c.query(sql,values)).rows.map(decorate).filter(row=>matchesGroup(row,params)).map(row=>({month:row.month,product:row.productReference||'__unknown__',productName:row.product_name||row.productReference||'Produit non renseigné',status:row.status,quantity:row.quantity,region:row.region||null,zone:row.zone||null,amId:row.amId||null,...(includeActors?{holderId:row.holder_id||null,holderName:row.holder_name||null}:{}),...Object.fromEntries(['ageUnder30','age30to59','age60to89','age90plus','ageUnknown'].map(k=>[k,Number(row[k]||0)]))}));
   return {...buildAnalysis(rows,window),filters:Object.fromEntries([...params].filter(([key])=>['product','region','zone','amId','shopId','holderId','status','search'].includes(key)))};
 }

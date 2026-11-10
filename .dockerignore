@@ -13,3 +13,4 @@ exports
 .codex
 .agents
 .aws
+frontend/tests

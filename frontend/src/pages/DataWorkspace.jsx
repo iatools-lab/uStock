@@ -3,32 +3,26 @@ import '../styles/workspace-refinement.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { liveView } from '../domain/live-routing.js';
-import { LiveNationalStock, LiveStockMap, LivePerformance } from './LiveDirectorViews.jsx';
+import { LiveNationalStock, LiveStockMap } from './LiveDirectorViews.jsx';
+import StrategicPerformance from './StrategicPerformance.jsx';
 import { LiveAnalytics, LiveForecast } from './LiveAnalytics.jsx';
 import RoleNavigation from '../navigation/RoleNavigation.jsx';
 import { Boxes, PackageCheck, CheckCircle2, AlertTriangle, Warehouse, BriefcaseBusiness, Store, UsersRound, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { MENUS, ROLE_ROUTES } from '../navigation/menus.js';
 import { ProductChart, BarChart } from '../components/ApexCharts.jsx';
-import { ROLE_LABELS } from '../domain/stock.js';
+import { ChartInfo } from '../components/ChartFrame.jsx';
+const ROLE_LABELS={dg:'Directeur général'};
 import { loadSnapshot, quantity } from '../data/real-stock.js';
 import '../styles/real-stock.css';
 
 const text = value => value == null || value === '' ? 'Non renseigné' : String(value);
 const date = value => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Douala' }).format(new Date(value)) : 'Non renseigné';
 const todayInDouala = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Douala',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const filterKeys = ['date','startDate','endDate','granularity','product','region','zone','department','arrondissement','amId','shopId','holderId','holderKind','status','search'];
-const missingSources = {
-  needs: 'Les besoins exigent une règle de vente et de disponibilité validée, puis un historique commercial complet.',
-  inventory: 'Les comptages physiques et leurs écarts ne figurent pas dans la base étudiée.',
-  actors: 'Le mandat de l’utilisateur AM doit être fourni pour afficher uniquement son réseau.',
-  transfers: 'Les mouvements sont disponibles dans les périodes ; leur circuit opérationnel reste à qualifier.',
-  alerts: 'Les règles d’alerte et la conservation des actions restent à définir.',
-  technical: 'Les journaux de synchronisation et de supervision ne figurent pas dans les cinq tables de ukit.',
-  permissions: 'Les identités utilisateurs et leurs mandats restent à fournir.',
-};
-export default function DataWorkspace({ role }) {
+const filterKeys = ['date','startDate','endDate','granularity','comparison','product','region','zone','department','arrondissement','amId','shopId','holderId','holderKind','status','search'];
+export default function DataWorkspace() {
+  const role='dg';
   const { '*': menu = '' } = useParams();
-  const [page, setPage] = useState(1), [retry, setRetry] = useState(0), [state, setState] = useState({ loading: true }), [opened, setOpened] = useState(null);
+  const [page, setPage] = useState(1), [retry, setRetry] = useState(0), [state, setState] = useState({ loading: true });
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('upowa:sidebar:collapsed') === 'true'; } catch { return false; } });
   const [filtersOpen, setFiltersOpen] = useState(false);
   const toggleSidebar = () => { const value = !collapsed; setCollapsed(value); try { localStorage.setItem('upowa:sidebar:collapsed', String(value)); } catch {} };
@@ -51,20 +45,20 @@ export default function DataWorkspace({ role }) {
     setParams(query);
   };
   const updateFilters = patch => { setPage(1); const datesChanged=['date','startDate','endDate'].some(key=>key in patch); setFilters(current => ({...current,...patch,...(datesChanged?{granularity:'auto'}:{})})); };
-  useEffect(() => { setPage(1); setOpened(null); }, [menu, view]);
+  useEffect(() => { setPage(1); }, [menu, view]);
   useEffect(() => {
     const controller = new AbortController();
     let pending = false;
-    setState({ loading: true }); setOpened(null);
+    setState({ loading: true });
     async function refresh() {
       if (pending) return;
       pending = true;
-      try { const data = await loadSnapshot(endpoint, { role, page: ['assets','quality'].includes(view) ? page : 1, filters: view === 'quality' ? {...filters,status:'DEFECTIVE'} : filters, view, level: effectiveLevel, days, signal: controller.signal }); if (!controller.signal.aborted) setState({ data }); }
+      try { const data = await loadSnapshot(endpoint, { role, page: 1, filters: filters, view, level: effectiveLevel, days, signal: controller.signal }); if (!controller.signal.aborted) setState({ data }); }
       catch (error) { if (!controller.signal.aborted) setState({ error: error.message }); }
       finally { pending = false; }
     }
     refresh();
-    const timer = setInterval(refresh, ['analytics','forecast'].includes(view)?60000:15000);
+    const timer = setInterval(refresh, ['analytics','forecast','performance'].includes(view)?60000:15000);
     return () => { controller.abort(); clearInterval(timer); };
   }, [role, page, retry, filters, view, effectiveLevel, days]);
   const choosePeriod = kind => {
@@ -75,7 +69,6 @@ export default function DataWorkspace({ role }) {
   const data = state.data;
   const filterData=useRef(null);
   if(data)filterData.current=data;
-  const reason = missingSources[view];
   if (!view) return <Navigate to={ROLE_ROUTES[role]} replace />;
   return <div className={`role-operations role-${role} ${collapsed ? 'sidebar-collapsed' : ''}`}><a className="skip-link" href="#dashboard">Aller au contenu</a><div className="app-shell">
     <aside className="sidebar"><button className="sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'} title={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'} aria-expanded={!collapsed}>{collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}</button><div className="sidebar__brand"><div className="brand" aria-label="upOwa"><span className="brand__up">up</span><span className="brand__o">o</span><span className="brand__wa">wa</span><small className="brand__tagline">tracking des kits</small></div></div><div className="sidebar__eyebrow">Pilotage</div><RoleNavigation role={role} /><div className="sidebar__bottom"><div className="profile-card"><div className="avatar">{role.toUpperCase().slice(0, 2)}</div><div><strong>{ROLE_LABELS[role]}</strong><span>{role === 'am' ? 'Affectation à compléter' : 'Vue nationale'}</span></div></div></div></aside>
@@ -88,9 +81,9 @@ export default function DataWorkspace({ role }) {
     {data && !data.scope.authorized && <section className="panel" role="alert"><h2>Périmètre non accessible</h2><p>Votre affectation doit être confirmée par la source de données.</p></section>}
     {data?.scope.authorized && <>
 
-      {reason ? <section className="panel"><h2>Informations à compléter</h2><p>{reason}</p></section> : <>
+      <>
         {view === 'overview' && <><section className="overview-kpis" aria-label="Indicateurs réels">{[['total','Parc analysé',Boxes],['instock','En stock',PackageCheck],['deployed',data.period?.start?'Vendus sur la période':'Équipements déployés / vendus',CheckCircle2],['defective',data.period?.start?'Défauts sur la période':'Stock défectueux',AlertTriangle]].map(([key,label,Icon], index) => <article key={key} className={`overview-metric ${index === 0 ? 'overview-metric--primary' : ''}`}><div><span>{label}</span><Icon size={19} /></div><strong>{data.metrics[key].value == null ? '—' : quantity(data.metrics[key].value)}</strong></article>)}</section>
-        <section className="panel custody-panel"><div className="custody-heading"><div><p className="eyebrow">Localisation du stock</p><h2>Où sont les kits ?</h2></div><span>{quantity(data.metrics.total.value)} équipements · dernier détenteur déclaré</span></div>
+        <section className="panel custody-panel"><div className="custody-heading"><div><p className="eyebrow">Localisation du stock</p><h2>Où sont les kits ?</h2><ChartInfo align="left" title="Où sont les kits ?" explanation="Chaque couleur montre à qui les kits sont rattachés : entrepôts, area managers, boutiques, agents ou clients après une vente. Une grande partie signifie beaucoup de kits. Les nombres sous la barre donnent le détail."/></div><span>{quantity(data.metrics.total.value)} équipements · dernier détenteur déclaré</span></div>
           <div className="custody-track" role="img" aria-label="Répartition du stock par détenteur">{data.custody.map((row,index) => <div key={row.key} style={{width:`${Number(data.metrics.total.value) ? Number(row.quantity)/Number(data.metrics.total.value)*100 : 0}%`,background:['#001a70','#3265b5','#73a4d9','#fe5716','#a5b0c0'][index%5]}} title={`${row.label} : ${quantity(row.quantity)}`} />)}</div>
           <div className="custody-grid">{data.custody.map(row => { const Icon = {central:Warehouse,am:BriefcaseBusiness,shop:Store,agent:UsersRound}[row.key] || Boxes; return <div className="custody-item" key={row.key}><span className="custody-icon"><Icon size={21}/></span><div><span>{row.label}</span><strong>{quantity(row.quantity)}</strong></div></div>; })}</div>
         </section>
@@ -98,15 +91,10 @@ export default function DataWorkspace({ role }) {
         </>}
         {view === 'stock' && <LiveNationalStock data={data} level={effectiveLevel} onLevel={setLevel} filters={filters} onFilter={updateFilters}/>}
         {view === 'map' && <LiveStockMap data={data} filters={filters} onFilter={updateFilters}/>}
-        {view === 'performance' && <LivePerformance data={data} level={effectiveLevel} onLevel={setLevel} days={days} onDays={setDays}/>}
+        {view === 'performance' && <StrategicPerformance data={data} comparison={filters.comparison} onComparison={comparison=>updateFilters({comparison})}/>}
         {view === 'forecast' && <LiveForecast data={data}/>}
         {view === 'analytics' && <LiveAnalytics data={data}/>}
-        {view === 'availability' && <div className="commercial-content" data-live-view="availability"><p className="notice"></p><div className="commercial-card-grid">{data.products.map(product=><article className="panel dc-availability-card" key={product.key}><h2>{product.label}</h2><dl><div><dt>Stock suivi</dt><dd>{quantity(product.quantity)}</dd></div><div><dt>En stock</dt><dd>{quantity(product.instock)}</dd><dt>Déployés / vendus</dt><dd>{quantity(product.deployed)}</dd><dt>Défectueux</dt><dd>{quantity(product.defective)}</dd></div></dl></article>)}</div></div>}
-        {view === 'references' && <section className="panel" data-live-view="references"><h2>Répartition des lieux</h2><p>{quantity(data.mapping?.rows)} lignes géographiques exploitables dans le fichier Excel.</p><p>{quantity(data.mapping?.unmappedRegion)} équipements sans région certaine · {quantity(data.mapping?.unmappedZone)} sans zone certaine.</p><p>{quantity(data.mapping?.conflicts)} équipements avec un rattachement géographique en conflit.</p></section>}
-        {view === 'quality' && <section className="panel"><h2>Équipements défectueux</h2><p>{quantity(data.metrics.defective.value)} équipements déclarés DEFECTIVE. Cet état ne prouve pas qu’un dossier SAV est ouvert.</p></section>}
-        {['assets','quality'].includes(view) && <section className="panel table-panel" data-live-view={view}><h2>Équipements · page {page}</h2><p>Liste fournie par la source ; les indicateurs portent sur le périmètre complet, indépendamment de cette page.</p><div className="table-scroll"><table><thead><tr>{['Numéro de série', 'Produit', 'Détenteur / vendeur', 'État CRM', 'État historique', 'Disponibilité'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{data.assets.rows.map(asset => <tr key={asset.serialNumber}><td><button className="link-button" onClick={() => setOpened(asset)}>{asset.serialNumber}</button></td><td>{text(asset.productName)}<small className="cell-note">{text(asset.productReference)}</small></td><td>{text(asset.holderName)}<small className="cell-note">{asset.crmStatus==='DEPLOYED'?'Vendeur':text(asset.holderCategory)}</small></td><td>{text(asset.crmStatus)}<small className="cell-note">{text(asset.crmFlag)}</small></td><td>{text(asset.historicalStatus)}</td><td>{{ available: 'Confirmée', unavailable: 'Indisponible', unconfirmed: 'En stock' }[asset.availability]}</td></tr>)}</tbody></table></div>{!data.assets.rows.length && <p>Aucun équipement dans cette page.</p>}<div className="pagination-controls"><button className="secondary-button" disabled={page === 1} onClick={() => setPage(n => n - 1)}>Précédent</button><button className="secondary-button" disabled={!data.assets.hasMore} onClick={() => setPage(n => n + 1)}>Suivant</button></div></section>}
-      </>}
-      {opened && ['assets','quality'].includes(view) && <section className="panel" aria-label="Fiche équipement"><button onClick={() => setOpened(null)}>Fermer la fiche</button><h2>{opened.serialNumber}</h2><p>{text(opened.productName)} · {text(opened.availabilityReason)}</p><p>Propriétaire client : {text(opened.ownerClientNumber)} · {opened.crmStatus==='DEPLOYED'?'Vendeur':'Détenteur'} : {text(opened.holderName)}</p><h3>Périodes connues</h3><p>Ces périodes ne constituent pas un journal exhaustif ni une preuve documentaire.</p>{opened.periods == null ? <p>Historique non fourni.</p> : !opened.periods.length ? <p>Aucune période connue dans la couverture fournie.</p> : <ol>{opened.periods.map((period, i) => <li key={i}>{date(period.startAt)} → {period.endAt ? date(period.endAt) : 'Période en cours'} · {text(period.holderName)} · {text(period.assetStatus)}</li>)}</ol>}</section>}
+      </>
     </>}
   </div></main></div></div>;
 }

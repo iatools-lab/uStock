@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AS_OF, DEMO_AM, EMPTY_FILTERS, FILTERS, PRODUCTS, ROLE_LABELS, applyEvent, blankKit, buildAlerts, buildTrend, changeFilter, filterOptions, groupStock, inventories, inventoryDiff, isAvailable, kits, locationById, locations, replayKit, selectInventories, selectKits, summarize } from '../src/domain/stock.js';
+import { AS_OF, DEMO_AM, EMPTY_FILTERS, FILTERS, PRODUCTS, ROLE_LABELS, applyEvent, blankKit, buildAlerts, buildTrend, changeFilter, filterOptions, groupStock, inventories, inventoryDiff, isAvailable, kits, locationById, locations, replayKit, selectInventories, selectKits, summarize } from './legacy-stock.js';
 
 const e = (id, type, extras = {}) => ({ id, type, at: `2026-09-${String(id).padStart(2, '0')}T08:00:00.000Z`, actor: 'Expéditeur', reference: `REF-${id}`, ...extras });
 const received = () => applyEvent(blankKit('TEST-1', PRODUCTS[0]), e(1, 'receive', { to: 'central' }));

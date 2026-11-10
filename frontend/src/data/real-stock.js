@@ -45,7 +45,7 @@ export async function loadSnapshot(endpoint, { role, page, filters = {}, view, l
   const url = new URL(endpoint, globalThis.location?.origin || 'http://localhost');
   if (url.origin !== (globalThis.location?.origin || 'http://localhost')) throw new Error('La source doit utiliser la même origine que le site.');
   url.searchParams.set('role', role); url.searchParams.set('page', String(page));
-  for (const key of ['date', 'startDate', 'endDate', 'granularity', 'product', 'region', 'zone', 'department', 'arrondissement', 'amId', 'shopId', 'holderId', 'holderKind', 'status', 'search']) if (filters[key]) url.searchParams.set(key, filters[key]);
+  for (const key of ['date', 'startDate', 'endDate', 'granularity', 'comparison', 'product', 'region', 'zone', 'department', 'arrondissement', 'amId', 'shopId', 'holderId', 'holderKind', 'status', 'search']) if (filters[key]) url.searchParams.set(key, filters[key]);
   for (const [key,value] of Object.entries({view,level,days})) if(value) url.searchParams.set(key,String(value));
   const response = await fetcher(url.pathname + url.search, { signal, cache: 'no-store', headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error(`Données indisponibles (${response.status}).`);

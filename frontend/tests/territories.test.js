@@ -63,13 +63,14 @@ test('les onglets regroupent uniquement leur niveau et les entrepôts',()=>{
   assert.equal(territoryPlace(actor,'shopId',actors).label,'Boutique');
   for(const level of ['zone','region','department','arrondissement','amId','shopId'])assert.deepEqual(territoryPlace({holderKind:'central'},level,actors),{key:'__central__',label:'Entrepôts'});
 });
-test('les menus DG ont chacun une vue distincte et les autres profils gardent leurs menus',()=>{
+test('les menus DG ont chacun une vue distincte et les autres profils sont retires',()=>{
   assert.deepEqual(MENUS.dg.map(m=>liveView('dg',m.path)),['overview','stock','map','performance','forecast','analytics']);
   for(const [role,menus] of Object.entries(MENUS))for(const menu of menus)assert.ok(liveView(role,menu.path),`${role}/${menu.path}`);
   assert.equal(liveView('dg','inventaires'),null);
   assert.equal(liveView('dc','stock-national'),null);
-  assert.equal(liveView('it','journal'),'technical');
-  assert.equal(liveView('supply','journal'),'assets');
+  assert.equal(liveView('it','journal'),null);
+  assert.equal(liveView('supply','journal'),null);
+  assert.deepEqual(Object.keys(MENUS),['dg']);
 });
 test('le fichier couvre huit zones mais une région ne détermine pas une zone',()=>{
   assert.equal(rows.length,298);

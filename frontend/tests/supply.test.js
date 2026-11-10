@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { kits } from '../src/domain/stock.js';
-import { supplyEvents, supplyOrders } from '../src/domain/supply.js';
+import { kits } from './legacy-stock.js';
+import { supplyEvents, supplyOrders } from './legacy-supply.js';
 test('Les réceptions centrales réconcilient exactement le parc et les commandes', () => {
   assert.equal(supplyEvents({}, 'receive').length, kits.length);
   assert.equal(supplyOrders().reduce((n, r) => n + r.received, 0), kits.length);

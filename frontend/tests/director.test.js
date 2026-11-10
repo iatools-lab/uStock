@@ -1,16 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EMPTY_FILTERS, selectKits, selectInventories, summarize, AS_OF } from '../src/domain/stock.js';
-import { networkPerformance } from '../src/domain/director.js';
+import { EMPTY_FILTERS, selectKits, selectInventories, summarize, AS_OF } from './legacy-stock.js';
+import { networkPerformance } from './legacy-director.js';
 import { MENUS, ROLE_ROUTES } from '../src/navigation/menus.js';
 
 test('les menus des profils sont uniques et la carte respecte le périmètre demandé', () => {
   assert.equal(MENUS.dg.length, 6);
-  assert.equal(MENUS.supply.length, 7);
-  assert.ok(!MENUS.supply.some(m => ['approvisionnements', 'receptions'].includes(m.path)));
+  assert.deepEqual(Object.keys(MENUS),['dg']);
   assert.ok(!MENUS.dg.some(m => ['risques', 'tracabilite'].includes(m.path)));
-  for (const role of ['dg', 'dc', 'supply']) assert.ok(MENUS[role].some(m => m.path === 'carte'));
-  assert.ok(!MENUS.am.some(m => m.path === 'carte'));
+  assert.ok(MENUS.dg.some(m => m.path === 'carte'));
   for (const role of Object.keys(ROLE_ROUTES)) {
     assert.equal(new Set(MENUS[role].map(m => m.path)).size, MENUS[role].length);
     assert.equal(MENUS[role][0].path, '');

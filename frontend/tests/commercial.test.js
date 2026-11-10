@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selectKits, locations, isAvailable } from '../src/domain/stock.js';
-import { networkRows, commercialSales, salesSeries, coverageRows, allocationSuggestions, exportCommercial, csv } from '../src/domain/commercial.js';
+import { selectKits, locations, isAvailable } from './legacy-stock.js';
+import { networkRows, commercialSales, salesSeries, coverageRows, allocationSuggestions, exportCommercial, csv } from './legacy-commercial.js';
 const kits = selectKits('dc', {});
 test('Le réseau conserve les parents avec un filtre boutique ou agent', () => {
   for (const shop of locations.filter(l => l.type === 'shop')) {

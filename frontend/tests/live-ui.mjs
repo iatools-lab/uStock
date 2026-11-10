@@ -78,7 +78,7 @@ try{
   await page.locator('.map-marker').filter({has:page.getByText('CENTRE',{exact:true})}).click();
   const centre=await(await mapResponse).json();assert.ok(centre.mapRegions.every(row=>row.key==='CENTRE'));
   data=await navigate('/directeur/performance','performance');
-  await page.getByRole('heading',{name:'Résultats par zone'}).waitFor({timeout:60000});assert.ok(data.performance);assert.ok(data.performance.rows.length>0);
+  await page.getByRole('heading',{name:'Comparaison détaillée des performances'}).waitFor({timeout:60000});assert.ok(data.performance);assert.ok(data.performance.rows.length>0);assert.ok(data.analysis.previous);
   assert.equal(await page.locator('.territory-card').count(),0);assert.equal(await page.locator('.cameroon-map').count(),0);
   const assetResponse=await page.request.get(origin+'/api/local-stock?role=dg&view=assets&page=1');
   assert.equal(assetResponse.status(),200);const assetData=await assetResponse.json();

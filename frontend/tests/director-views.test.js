@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selectKits, EMPTY_FILTERS, applyEvent, blankKit, FILTERS, filterOptions } from '../src/domain/stock.js';
-import { STOCK_LEVELS, stockDistribution, serviceCases } from '../src/domain/director-views.js';
+import { selectKits, EMPTY_FILTERS, applyEvent, blankKit, FILTERS, filterOptions } from './legacy-stock.js';
+import { STOCK_LEVELS, stockDistribution, serviceCases } from './legacy-director-views.js';
 
 test('chaque ventilation, y compris villes et agents, réconcilie exactement le stock', () => {
   const selected = selectKits('dg');

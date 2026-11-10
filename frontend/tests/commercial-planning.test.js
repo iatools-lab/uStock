@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selectKits, locationById } from '../src/domain/stock.js';
-import { saleFacts, salesRanking, saleTrend, demandByPlace, COMMERCIAL_LEVELS } from '../src/domain/commercial-planning.js';
-import { CENTRAL_BUCKET, stockDistribution, territorySummary } from '../src/domain/director-views.js';
+import { selectKits, locationById } from './legacy-stock.js';
+import { saleFacts, salesRanking, saleTrend, demandByPlace, COMMERCIAL_LEVELS } from './legacy-commercial-planning.js';
+import { CENTRAL_BUCKET, stockDistribution, territorySummary } from './legacy-director-views.js';
 
 function soldKit(id, product, seller) {
   return { id, product, history: [{ type:'transfer',to:seller,at:'2026-09-01T08:00:00.000Z' }, { id:id+'-sale',type:'sell',at:'2026-09-02T08:00:00.000Z' }, { type:'return',to:locationById[seller].shopId,at:'2026-09-03T08:00:00.000Z' }] };

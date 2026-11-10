@@ -1,6 +1,6 @@
 export const STATE_LABELS={INSTOCK:'En stock',DEPLOYED:'Vendus',DEFECTIVE:'Défectueux'};
 export const PALETTE=['#001a70','#fe5716','#168779','#7297dc','#b377bf','#bd851e','#8894a9'];
-const name=(row,dimension,names)=>dimension==='product'?row.productName:dimension==='amId'?names.get(row.amId)||'AM non renseigné':row[dimension]||'Lieu non renseigné';
+const name=(row,dimension,names)=>dimension==='product'?row.productName:dimension==='holderId'?row.holderName||row.holderId||'Vendeur non renseigné':dimension==='amId'?names.get(row.amId)||'AM non renseigné':row[dimension]||'Lieu non renseigné';
 
 export function monthlySeries(analysis,dimension,status,names=new Map()){
   const totals=new Map();

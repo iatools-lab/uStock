@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { areaData, areaTransfers, areaActors } from '../src/domain/area-manager.js';
-import { coverageRows } from '../src/domain/commercial.js';
+import { areaData, areaTransfers, areaActors } from './legacy-area-manager.js';
+import { coverageRows } from './legacy-commercial.js';
 test('AM : stocks, comptages, acteurs, alertes et demandes restent dans le mandat', () => {
   const data = areaData();
   assert.ok(data.selected.length);

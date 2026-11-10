@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { selectKits, summarize, groupStock } from '../src/domain/stock.js';
-import { STOCK_LEVELS, stockDistribution } from '../src/domain/director-views.js';
-import { mapStock, REGION_NAMES, geometryPoints, geometryPath, fitMap } from '../src/domain/stock-map.js';
+import { selectKits, summarize, groupStock } from './legacy-stock.js';
+import { STOCK_LEVELS, stockDistribution } from './legacy-director-views.js';
+import { mapStock, REGION_NAMES, geometryPoints, geometryPath, fitMap } from './legacy-stock-map.js';
 
 const geo = JSON.parse(readFileSync(new URL('../src/data/cameroon-regions.json', import.meta.url), 'utf8'));
 const features = geo.features.map(f => ({ ...f, name: REGION_NAMES[f.properties.shapeName] || f.properties.shapeName }));

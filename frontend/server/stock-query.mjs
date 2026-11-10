@@ -3,6 +3,7 @@ import { inclusionSQL } from './analysis-selection.mjs';
 import { eligibleSQL } from './status-scope.mjs';
 import { queryAnalysis } from './analytics.mjs';
 import { firstSaleInPeriodSQL, validatedFirstSaleSQL } from './sales-scope.mjs';
+import { comparisonPeriod } from './performance-period.mjs';
 
 export const GROUPS = {zone:'zone',region:'region',department:'department',arrondissement:'arrondissement',amId:'amId',shopId:'shopId',holderId:'holderId'};
 const ACTIVE = new Set(['INSTOCK','DEFECTIVE']);
@@ -42,7 +43,8 @@ export function territoryPlace(row,level,byId){
 export async function queryStock(c,params,selection={rules:[],revision:0}){
   const page=Number(params.get('page')||1),days=Number(params.get('days')||90),role=params.get('role')||'dg',view=params.get('view')||'overview';
   const level=view==='performance'?'zone':params.get('level')||'zone';
-  if(view==='forecast'){params=new URLSearchParams(params);params.delete('status');}
+  const operational=['commercial','teams','opportunities','sales','logistics','redistribution','treatment'].includes(view);
+  if(view==='forecast'||view==='performance'||operational){params=new URLSearchParams(params);params.delete('status');}
   if(!Number.isSafeInteger(page)||page<1||page>100000||![30,60,90,180,365].includes(days)||!GROUPS[level]||!['dg','dc','supply','am','it'].includes(role))throw new Error('INVALID_REQUEST');
   for(const [,value] of params)if(value.length>200)throw new Error('INVALID_FILTER');
   const identity=(await c.query(`SELECT current_database() AS "name",now() AS "at",(now() AT TIME ZONE 'Africa/Douala')::date::text AS today,(SELECT max(_loaded_at) FROM bi_schema.dim_asset) AS loaded`)).rows[0];
@@ -100,7 +102,7 @@ export async function queryStock(c,params,selection={rules:[],revision:0}){
 
   const grouped=(await c.query(`WITH selected AS (${source}) SELECT holder_id,routing_shop_id,max(holder_name) holder_name,product_reference,max(product_name) product_name,status,in_crm,count(*)::int quantity FROM selected GROUP BY holder_id,routing_shop_id,product_reference,status,in_crm`,values)).rows.map(decorate);
   const scoped=grouped.filter(row=>matchesGroup(row,params));
-  const products=new Map(),custody=new Map(),places=new Map(),regions=new Map(),zones=new Map(),statuses=new Map();
+  const products=new Map(),custody=new Map(),places=new Map(),regions=new Map(),regionProducts=new Map(),zones=new Map(),statuses=new Map();
   const totals={total:0,active:0,unconfirmed:0,defective:0,deployed:0,unmappedRegion:0,unmappedZone:0,conflicts:0};
   const labels={central:'Entrepôts',am:'Area managers',shop:'Boutiques',agent:'Agents',sav:'SAV',unknown:'Non classé'};
   const unassigned={quantity:0,instock:0,deployed:0,defective:0};
@@ -119,8 +121,11 @@ export async function queryStock(c,params,selection={rules:[],revision:0}){
     const regionLabel=row.region||'Région non renseignée';
     const region=increment(regions,regionKey,regionLabel,n,{defective:0,instock:0,deployed:0});
     if(row.status==='DEFECTIVE')region.defective+=n;else if(row.status==='INSTOCK')region.instock+=n;else region.deployed+=n;
-    const place=territoryPlace(row,level,byId);
-    if(!place){unassigned.quantity+=n;unassigned[row.status==='DEPLOYED'?'deployed':row.status==='INSTOCK'?'instock':'defective']+=n;continue;}
+    const rpKey=JSON.stringify([regionKey,row.productReference]);
+    if(!regionProducts.has(rpKey))regionProducts.set(rpKey,{key:regionKey,label:regionLabel,productReference:row.productReference,productName:row.product_name,quantity:0,instock:0,deployed:0,defective:0});
+    const rp=regionProducts.get(rpKey);rp.quantity+=n;rp[row.status==='DEPLOYED'?'deployed':row.status==='INSTOCK'?'instock':'defective']+=n;
+    let place=territoryPlace(row,level,byId);
+    if(!place){unassigned.quantity+=n;unassigned[row.status==='DEPLOYED'?'deployed':row.status==='INSTOCK'?'instock':'defective']+=n;place={key:'__unknown__',label:'Sans rattachement'};}
     const id=JSON.stringify([place.key,row.productReference]);
     if(!places.has(id))places.set(id,{...place,productReference:row.productReference,productName:row.product_name,quantity:0,defective:0,instock:0,deployed:0});
     const p=places.get(id);p.quantity+=n;if(row.status==='DEFECTIVE')p.defective+=n;else if(row.status==='INSTOCK')p.instock+=n;else p.deployed+=n;
@@ -153,6 +158,20 @@ export async function queryStock(c,params,selection={rules:[],revision:0}){
   for(const [name,field] of Object.entries({regions:'region',zones:'zone',departments:'department',arrondissements:'arrondissement'}))options[name]=[...new Set(grouped.map(row=>row[field]).filter(Boolean))].sort().map(value=>({value,label:value}));
   options.ams=agents.filter(a=>a.holderKind==='am').map(a=>({value:a.agent_number,label:a.agent_name}));options.shops=agents.filter(a=>a.holderKind==='shop'&&relevant.has(a.agent_number)).map(a=>({value:a.agent_number,label:a.agent_name}));
   const sourceDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Douala',year:'numeric',month:'2-digit',day:'2-digit'}).format(identity.loaded||identity.at);
-  const analysis=['analytics','forecast'].includes(view)?await queryAnalysis(c,{params,selection,asOfDate,view,decorate,matchesGroup}):null;
-  return {schemaVersion:1,source:'ukit',queriedAt:identity.at,sourceLoadedAt:identity.loaded||identity.at,asOfDate,period,today:identity.today,cohort:'analysis',selection:{revision:selection.revision,rules:selection.rules.length},statuses:asRows(statuses),cohortCount:String(totals.total),historical,stale:sourceDate<asOfDate,scope:{label:'Équipements retenus · périmètre filtré',authorized:true},coverage:{status:'partial',note:historical?'Situation de fin de journée reconstituée uniquement pour les équipements ayant un historique connu. La sélection des équipements et les rattachements géographiques sont ceux du référentiel actuel.':'Dernier état CRM connu des équipements retenus, avec ou sans marqueur. La date de chargement indique la fraîcheur réelle des données.'},metrics:{total:metric(totals.total,'DEPLOYED, INSTOCK et DEFECTIVE.'),active:metric(totals.active,'INSTOCK + DEFECTIVE présents dans le CRM.'),instock:metric(totals.unconfirmed,'État INSTOCK.'),available:metric(totals.unconfirmed,'État INSTOCK.'),availabilityUnconfirmed:metric(0,''),defective:metric(totals.defective,period.start?'Premier défaut dans la période, statut DEFECTIVE en fin de période.':'État DEFECTIVE.'),deployed:metric(totals.deployed,period.start?'Première vente dans la période, toujours validée DEPLOYED dans Upya.':'Équipements déployés à la date sélectionnée.'),sales:metric(period.start?totals.deployed:null,period.start?'Premières ventes validées Upya sur la période.':'Sélectionner une période pour mesurer les ventes.')},products:asRows(products),custody:asRows(custody),territories:{level,rows:[...places.values()],unassigned},mapRegions:asRows(regions),mapZones:asRows(zones),performance,analysis,mapping:{rows:territories.length,unmappedRegion:String(totals.unmappedRegion),unmappedZone:String(totals.unmappedZone),conflicts:String(totals.conflicts)},assets,options};
+  const includeActors=['commercial','teams','sales'].includes(view);
+  const analysis=['analytics','forecast','performance'].includes(view)||operational?await queryAnalysis(c,{params,selection,asOfDate,view:operational||view==='performance'?'forecast':view,decorate,matchesGroup,includeActors}):null;
+  if(analysis&&view==='performance'){
+    const reference=comparisonPeriod(analysis.window,params.get('comparison')||'previous',identity.today);
+    const previousParams=new URLSearchParams(params);previousParams.set('startDate',reference.start);previousParams.set('granularity','month');
+    const previous=await queryAnalysis(c,{params:previousParams,selection,asOfDate:reference.end,view:'forecast',decorate,matchesGroup,salesOnly:true});
+    analysis.previous={window:previous.window,mode:reference.mode,rows:previous.rows.filter(r=>r.status==='DEPLOYED')};
+  }
+  if(analysis&&['commercial','teams','sales'].includes(view)){
+    const shift=(date,n)=>new Date(Date.parse(date)+n*86400000).toISOString().slice(0,10);
+    const previousParams=new URLSearchParams(params),end=shift(analysis.window.start,-1);
+    previousParams.set('startDate',shift(end,1-analysis.window.days));previousParams.set('endDate',end);previousParams.set('granularity','month');
+    const previous=await queryAnalysis(c,{params:previousParams,selection,asOfDate:end,view:'forecast',decorate,matchesGroup,salesOnly:true,includeActors});
+    analysis.previous={window:previous.window,rows:previous.rows.filter(r=>r.status==='DEPLOYED')};
+  }
+  return {schemaVersion:1,source:'ukit',queriedAt:identity.at,sourceLoadedAt:identity.loaded||identity.at,asOfDate,period,today:identity.today,cohort:'analysis',selection:{revision:selection.revision,rules:selection.rules.length},statuses:asRows(statuses),cohortCount:String(totals.total),historical,stale:sourceDate<asOfDate,scope:{label:'Équipements retenus · périmètre filtré',authorized:true},coverage:{status:'partial',note:historical?'Situation de fin de journée reconstituée uniquement pour les équipements ayant un historique connu. La sélection des équipements et les rattachements géographiques sont ceux du référentiel actuel.':'Dernier état CRM connu des équipements retenus, avec ou sans marqueur. La date de chargement indique la fraîcheur réelle des données.'},metrics:{total:metric(totals.total,'DEPLOYED, INSTOCK et DEFECTIVE.'),active:metric(totals.active,'INSTOCK + DEFECTIVE présents dans le CRM.'),instock:metric(totals.unconfirmed,'État INSTOCK.'),available:metric(totals.unconfirmed,'État INSTOCK.'),availabilityUnconfirmed:metric(0,''),defective:metric(totals.defective,period.start?'Premier défaut dans la période, statut DEFECTIVE en fin de période.':'État DEFECTIVE.'),deployed:metric(totals.deployed,period.start?'Première vente dans la période, toujours validée DEPLOYED dans Upya.':'Équipements déployés à la date sélectionnée.'),sales:metric(period.start?totals.deployed:null,period.start?'Premières ventes validées Upya sur la période.':'Sélectionner une période pour mesurer les ventes.')},products:asRows(products),custody:asRows(custody),territories:{level,rows:[...places.values()],unassigned},mapRegions:asRows(regions),mapRegionProducts:[...regionProducts.values()],mapZones:asRows(zones),performance,analysis,mapping:{rows:territories.length,unmappedRegion:String(totals.unmappedRegion),unmappedZone:String(totals.unmappedZone),conflicts:String(totals.conflicts)},assets,options};
 }
