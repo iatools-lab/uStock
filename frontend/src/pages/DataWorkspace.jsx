@@ -11,9 +11,12 @@ import { Boxes, PackageCheck, CheckCircle2, AlertTriangle, Warehouse, BriefcaseB
 import { MENUS, ROLE_ROUTES } from '../navigation/menus.js';
 import { ProductChart, BarChart } from '../components/ApexCharts.jsx';
 import { ChartInfo } from '../components/ChartFrame.jsx';
-const ROLE_LABELS={dg:'Directeur général'};
+const ROLE_LABELS={dg:'Pilotage du stock'};
 import { loadSnapshot, quantity } from '../data/real-stock.js';
 import '../styles/real-stock.css';
+import KpiScope from '../components/KpiScope.jsx';
+import { stockScope } from '../domain/stock-scope.js';
+import '../styles/kpi-scope.css';
 
 const text = value => value == null || value === '' ? 'Non renseigné' : String(value);
 const date = value => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Douala' }).format(new Date(value)) : 'Non renseigné';
@@ -67,12 +70,14 @@ export default function DataWorkspace() {
     updateFilters({date:'',startDate:kind==='all'?'':`${year}-${String(first).padStart(2,'0')}-01`,endDate:kind==='all'?'':end});
   };
   const data = state.data;
+  const scopeFilters=['forecast','performance'].includes(view)?{...filters,status:''}:filters;
+  const scope=stockScope(scopeFilters,data?.options);
   const filterData=useRef(null);
   if(data)filterData.current=data;
   if (!view) return <Navigate to={ROLE_ROUTES[role]} replace />;
   return <div className={`role-operations role-${role} ${collapsed ? 'sidebar-collapsed' : ''}`}><a className="skip-link" href="#dashboard">Aller au contenu</a><div className="app-shell">
-    <aside className="sidebar"><button className="sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'} title={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'} aria-expanded={!collapsed}>{collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}</button><div className="sidebar__brand"><div className="brand" aria-label="upOwa"><span className="brand__up">up</span><span className="brand__o">o</span><span className="brand__wa">wa</span><small className="brand__tagline">tracking des kits</small></div></div><div className="sidebar__eyebrow">Pilotage</div><RoleNavigation role={role} /><div className="sidebar__bottom"><div className="profile-card"><div className="avatar">{role.toUpperCase().slice(0, 2)}</div><div><strong>{ROLE_LABELS[role]}</strong><span>{role === 'am' ? 'Affectation à compléter' : 'Vue nationale'}</span></div></div></div></aside>
-    <main id="dashboard" className="main-content" tabIndex={-1}><header className="topbar"><div><p className="page-kicker">{ROLE_LABELS[role]}</p><h1>{menuLabel}</h1><p className="page-subtitle">{menu ? 'Pilotage du stock upOwa' : 'Une vue claire du stock et de sa répartition.'}</p></div><FilterToolbar filters={filters} open={filtersOpen} onToggle={()=>setFiltersOpen(v=>!v)} onRefresh={()=>setRetry(n=>n+1)}/></header>
+    <aside className="sidebar"><button className="sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'} title={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'} aria-expanded={!collapsed}>{collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}</button><div className="sidebar__brand"><div className="brand" aria-label="upOwa"><span className="brand__up">up</span><span className="brand__o">o</span><span className="brand__wa">wa</span><small className="brand__tagline">tracking des kits</small></div></div><div className="sidebar__eyebrow">Pilotage</div><RoleNavigation role={role} /><div className="sidebar__bottom"><div className="profile-card"><div className="avatar">ST</div><div><strong>{ROLE_LABELS[role]}</strong><span>{scope.title}</span></div></div></div></aside>
+    <main id="dashboard" className="main-content" tabIndex={-1}><header className="topbar"><div><p className="page-kicker">{ROLE_LABELS[role]}</p><h1>{menuLabel}</h1></div><FilterToolbar filters={filters} open={filtersOpen} onToggle={()=>setFiltersOpen(v=>!v)} onRefresh={()=>setRetry(n=>n+1)}/></header>
     <div className={`${view === 'overview' ? 'overview' : 'commercial-content'} live-stock`} data-live-view={view}>
     <p className="sr-only">Lecture directe de PostgreSQL distant · actualisation toutes les 15 secondes.</p>
       <WorkspaceFilters open={filtersOpen} onClose={()=>setFiltersOpen(false)} filters={filters} data={data||filterData.current} view={view} onChange={updateFilters} onReset={()=>{setPage(1);setFilters({});}} onPeriod={choosePeriod} today={data?.today||filterData.current?.today||todayInDouala()}/>
@@ -82,7 +87,7 @@ export default function DataWorkspace() {
     {data?.scope.authorized && <>
 
       <>
-        {view === 'overview' && <><section className="overview-kpis" aria-label="Indicateurs réels">{[['total','Parc analysé',Boxes],['instock','En stock',PackageCheck],['deployed',data.period?.start?'Vendus sur la période':'Équipements déployés / vendus',CheckCircle2],['defective',data.period?.start?'Défauts sur la période':'Stock défectueux',AlertTriangle]].map(([key,label,Icon], index) => <article key={key} className={`overview-metric ${index === 0 ? 'overview-metric--primary' : ''}`}><div><span>{label}</span><Icon size={19} /></div><strong>{data.metrics[key].value == null ? '—' : quantity(data.metrics[key].value)}</strong></article>)}</section>
+        {view === 'overview' && <><KpiScope filters={filters} options={data.options}/><section className="overview-kpis" aria-label="Indicateurs réels">{[['total',scope.title,Boxes],['instock','En stock',PackageCheck],['deployed',data.period?.start?'Vendus sur la période':'Équipements déployés / vendus',CheckCircle2],['defective',data.period?.start?'Défauts sur la période':'Stock défectueux',AlertTriangle]].map(([key,label,Icon], index) => <article key={key} className={`overview-metric ${index === 0 ? 'overview-metric--primary' : ''}`}><div><span>{label}</span><Icon size={19} /></div><strong>{data.metrics[key].value == null ? '—' : quantity(data.metrics[key].value)}</strong></article>)}</section>
         <section className="panel custody-panel"><div className="custody-heading"><div><p className="eyebrow">Localisation du stock</p><h2>Où sont les kits ?</h2><ChartInfo align="left" title="Où sont les kits ?" explanation="Chaque couleur montre à qui les kits sont rattachés : entrepôts, area managers, boutiques, agents ou clients après une vente. Une grande partie signifie beaucoup de kits. Les nombres sous la barre donnent le détail."/></div><span>{quantity(data.metrics.total.value)} équipements · dernier détenteur déclaré</span></div>
           <div className="custody-track" role="img" aria-label="Répartition du stock par détenteur">{data.custody.map((row,index) => <div key={row.key} style={{width:`${Number(data.metrics.total.value) ? Number(row.quantity)/Number(data.metrics.total.value)*100 : 0}%`,background:['#001a70','#3265b5','#73a4d9','#fe5716','#a5b0c0'][index%5]}} title={`${row.label} : ${quantity(row.quantity)}`} />)}</div>
           <div className="custody-grid">{data.custody.map(row => { const Icon = {central:Warehouse,am:BriefcaseBusiness,shop:Store,agent:UsersRound}[row.key] || Boxes; return <div className="custody-item" key={row.key}><span className="custody-icon"><Icon size={21}/></span><div><span>{row.label}</span><strong>{quantity(row.quantity)}</strong></div></div>; })}</div>
@@ -91,9 +96,9 @@ export default function DataWorkspace() {
         </>}
         {view === 'stock' && <LiveNationalStock data={data} level={effectiveLevel} onLevel={setLevel} filters={filters} onFilter={updateFilters}/>}
         {view === 'map' && <LiveStockMap data={data} filters={filters} onFilter={updateFilters}/>}
-        {view === 'performance' && <StrategicPerformance data={data} comparison={filters.comparison} onComparison={comparison=>updateFilters({comparison})}/>}
-        {view === 'forecast' && <LiveForecast data={data}/>}
-        {view === 'analytics' && <LiveAnalytics data={data}/>}
+        {view === 'performance' && <StrategicPerformance data={data} filters={scopeFilters} comparison={filters.comparison} onComparison={comparison=>updateFilters({comparison})}/>}
+        {view === 'forecast' && <LiveForecast data={data} filters={scopeFilters}/>}
+        {view === 'analytics' && <LiveAnalytics data={data} filters={filters}/>}
       </>
     </>}
   </div></main></div></div>;

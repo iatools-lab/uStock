@@ -1,4 +1,5 @@
 import ExcelTable from '../components/ExcelTable.jsx';
+import KpiScope from '../components/KpiScope.jsx';
 import { useState } from 'react';
 import { TrendChart, BarChart } from '../components/ApexCharts.jsx';
 import { quantity } from '../data/real-stock.js';
@@ -16,7 +17,7 @@ function PeriodTable({analysis}){
   return <ExcelTable title={analysis.window.granularity==='day'?'Récapitulatif journalier':'Récapitulatif mensuel'} headers={['Période','En stock en fin de période','Vendus','Nouveaux défauts']} rows={rows} totals={totals} metadata={exportMetadata(analysis)}/>;
 }
 
-export function LiveAnalytics({data}){
+export function LiveAnalytics({data,filters={}}){
   const [tab,setTab]=useState('place');
   const analysis=data.analysis,names=new Map((data.options.ams||[]).map(r=>[r.value,r.label]));
   if(!analysis)return null;
@@ -25,7 +26,7 @@ export function LiveAnalytics({data}){
   const stockCurve=stateEvolution(analysis,'INSTOCK');
   const stockProductRows=products.rows.map(r=>({key:r.id,label:r.label,stock:r.stock,target:r.target}));
   const alerts=amNeeds.rows.filter(r=>r.need>0).sort((a,b)=>b.need-a.need);
-  return <div className="live-analysis" data-live-view="analytics"><div className="decision-kpis"><article><span>Kits vendus</span><strong>{quantity(zoneNeeds.totals.sold)}</strong></article><article><span>Besoin pour 30 jours</span><strong>{quantity(zoneNeeds.totals.need)}</strong><small>Au rythme des ventes observées</small></article><article><span>Nouveaux défauts</span><strong>{quantity(defective)}</strong></article></div>
+  return <div className="live-analysis" data-live-view="analytics"><KpiScope filters={filters} options={data.options}/><div className="decision-kpis"><article><span>Kits vendus</span><strong>{quantity(zoneNeeds.totals.sold)}</strong></article><article><span>Besoin pour 30 jours</span><strong>{quantity(zoneNeeds.totals.need)}</strong><small>Au rythme des ventes observées</small></article><article><span>Nouveaux défauts</span><strong>{quantity(defective)}</strong></article></div>
     <Tabs label="Tendances" value={tab} onChange={setTab} items={ [['place','Lieu'],['kit','Kit'],['state','État']] }/><div id="Tendances-panel" role="tabpanel" aria-labelledby={`Tendances-${tab}`}>
     {tab==='place'&&<><StockRisks analysis={analysis}/><div className="analysis-grid"><Evolution analysis={analysis} dimension="zone" status="DEPLOYED" names={names} title="Quelles zones gagnent ou perdent des ventes ?"/><Bars title="Quelles régions portent les ventes ?" rows={monthlySeries(analysis,'region','DEPLOYED',names).ranking}/></div><ExcelTable title="Quels area managers renforcer en priorité ?" headers={['Area manager','Vendus','En stock','Besoin pour 30 jours']} rows={alerts.map(r=>[r.label,r.sold,r.stock,r.need])} metadata={exportMetadata(analysis)}/>{!alerts.length&&<p className="decision-note">Aucun besoin calculé sur les 30 prochains jours.</p>}</>}
     {tab==='kit'&&<><div className="analysis-grid"><Evolution analysis={analysis} dimension="product" status="DEPLOYED" names={names} title="Quels produits progressent dans les ventes ?"/><BarChart title="Quels produits faut-il réapprovisionner ?" rows={stockProductRows} seriesSpec={[{key:'stock',label:'En stock'},{key:'target',label:'Besoin de stock pour 30 jours'}]} unit="kits"/></div><SalesConcentration analysis={analysis}/></>}
@@ -34,7 +35,7 @@ export function LiveAnalytics({data}){
   </div></div>;
 }
 
-export function LiveForecast({data}){
+export function LiveForecast({data,filters={}}){
   const [tab,setTab]=useState('zone');
   const horizon=90,buffer=14;
   const analysis=data.analysis,names=new Map((data.options.ams||[]).map(r=>[r.value,r.label]));
@@ -42,7 +43,7 @@ export function LiveForecast({data}){
   const forecast=forecastNeeds(analysis,tab,horizon,buffer,names),t=forecast.totals,matrix=needsMatrix(forecast);
   const metadata=[...exportMetadata(analysis),['Horizon (jours)',horizon],['Sécurité (jours)',buffer]];
   const projection=[0,1,2,3].map(i=>({month:i?`J+${Math.round(horizon*i/3)}`:'Départ',demand:Math.ceil(t.daily*horizon*i/3),remaining:Math.max(0,Math.floor(t.stock-t.daily*horizon*i/3))}));
-  return <div className="live-analysis" data-live-view="forecast"><div className="commercial-metrics"><article><span>Vendus sur la période observée</span><strong>{quantity(t.sold)}</strong></article><article><span>En stock</span><strong>{quantity(t.stock)}</strong></article><article><span>Stock cible</span><strong>{quantity(t.target)}</strong></article><article><span>Besoin estimé</span><strong>{quantity(t.need)}</strong></article></div>
+  return <div className="live-analysis" data-live-view="forecast"><KpiScope filters={filters} options={data.options}/><div className="commercial-metrics"><article><span>Vendus sur la période observée</span><strong>{quantity(t.sold)}</strong></article><article><span>En stock</span><strong>{quantity(t.stock)}</strong></article><article><span>Stock cible</span><strong>{quantity(t.target)}</strong></article><article><span>Besoin estimé</span><strong>{quantity(t.need)}</strong></article></div>
     <Tabs label="Besoins" value={tab} onChange={setTab} items={ [['zone','Par zone'],['amId','Par area manager'],['product','Par kit']] }/><div id="Besoins-panel" role="tabpanel" aria-labelledby={`Besoins-${tab}`}>
     <div className="analysis-grid"><Bars title="Besoins de réapprovisionnement" rows={forecast.rows} value="need"/><TrendChart title="Projection au rythme des ventes observées" data={projection} series={[{key:'demand',label:'Demande cumulée estimée'},{key:'remaining',label:'Stock restant estimé'}]} subtitle="Projection sans nouvelle réception ni transfert."/></div>
     {tab==='zone'&&<Redistribution analysis={analysis} part="charts"/>}

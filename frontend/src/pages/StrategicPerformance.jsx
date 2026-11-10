@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { BarChart, CoverageChart } from '../components/ApexCharts.jsx';
 import ExcelTable from '../components/ExcelTable.jsx';
+import KpiScope from '../components/KpiScope.jsx';
 import { performanceRows } from '../domain/performance.js';
 import { quantity } from '../data/real-stock.js';
 import '../styles/live-analysis.css';
 
-export default function StrategicPerformance({data,comparison,onComparison}){
+export default function StrategicPerformance({data,filters={},comparison,onComparison}){
  const [dimension,setDimension]=useState('zone');
  const a=data.analysis;
  if(!a?.previous)return <p role="status">Chargement de la comparaison…</p>;
@@ -14,7 +15,7 @@ export default function StrategicPerformance({data,comparison,onComparison}){
  const movement=[...rows].sort((x,y)=>Math.abs(y.delta)-Math.abs(x.delta));
  const percent=previous?`${(delta/previous*100).toFixed(1)} %`:'Non calculable';
  const ref=a.previous.window,metadata=[['Début',a.window.start],['Fin',a.window.end],['Référence début',ref.start],['Référence fin',ref.end],['Règle','Premières ventes validées Upya, mêmes exclusions et filtres'],...Object.entries(a.filters||{})];
- return <div className="live-analysis" data-live-view="performance"><div className="decision-kpis">{[['Ventes de la période',quantity(current)],['Ventes de référence',quantity(previous)],['Écart en kits',`${delta>0?'+':delta<0?'−':''}${quantity(Math.abs(delta))}`],['Progression / baisse',percent]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div>
+ return <div className="live-analysis" data-live-view="performance"><KpiScope filters={filters} options={data.options}/><div className="decision-kpis">{[['Ventes de la période',quantity(current)],['Ventes de référence',quantity(previous)],['Écart en kits',`${delta>0?'+':delta<0?'−':''}${quantity(Math.abs(delta))}`],['Progression / baisse',percent]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div>
  <div className="performance-comparison"><label>Comparer avec<select aria-label="Période de référence" value={comparison||'previous'} onChange={e=>onComparison(e.target.value)}><option value="previous">La période précédente</option><option value="year">La même période l’année précédente</option></select></label><p>Du <strong>{a.window.start}</strong> au <strong>{a.window.end}</strong>, comparé au <strong>{ref.start}</strong> jusqu’au <strong>{ref.end}</strong>.</p></div>
  <div className="decision-tabs" role="tablist" aria-label="Comparaison stratégique">{[['zone','Zones'],['amId','Area managers'],['product','Produits']].map(([id,label])=><button key={id} id={`performance-${id}`} role="tab" aria-selected={dimension===id} aria-controls="performance-panel" onClick={()=>setDimension(id)}>{label}</button>)}</div>
  <div id="performance-panel" role="tabpanel" aria-labelledby={`performance-${dimension}`}>
