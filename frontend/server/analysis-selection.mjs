@@ -1,6 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { eligibleSQL } from './status-scope.mjs';
+import { analysisCohortCTE } from './analysis-cohort.mjs';
+import { inclusionSQL } from './selection-rules.mjs';
+export { inclusionSQL } from './selection-rules.mjs';
 
 export function openSelectionStore(filename = process.env.UKIT_SELECTION_FILE || fileURLToPath(new URL('./analysis-selection.sqlite', import.meta.url))) {
   const db=new DatabaseSync(filename);
@@ -26,28 +28,27 @@ export function openSelectionStore(filename = process.env.UKIT_SELECTION_FILE ||
     close(){db.close();},
   };
 }
-export function inclusionSQL(selection,values,alias='a'){
-  const arrays=[selection.rules.filter(r=>r.kind==='asset'&&r.included).map(r=>r.key),selection.rules.filter(r=>r.kind==='asset'&&!r.included).map(r=>r.key),selection.rules.filter(r=>r.kind==='product'&&!r.included).map(r=>r.key)];
-  const slots=arrays.map(array=>{values.push(array);return `$${values.length}::text[]`;});
-  return `(${alias}.serial_number=ANY(${slots[0]}) OR (NOT (${alias}.serial_number=ANY(${slots[1]})) AND NOT (coalesce(${alias}.product_reference,'')=ANY(${slots[2]}))))`;
-}
 export async function querySelection(c,params,selection){
   const page=Number(params.get('page')||1);
   if(!Number.isSafeInteger(page)||page<1||page>100000)throw new Error('INVALID_PAGE');
-  const values=[],included=inclusionSQL(selection,values),where=[eligibleSQL('a')];
+  const cohort=analysisCohortCTE(),values=[],included=inclusionSQL(selection,values,'a','a.selection_key'),where=['true'];
   for(const [key,column] of [['product','a.product_reference'],['status','a.crm_status'],['flag','a.crm_flag']]){
     const value=params.get(key);if(value){if(value.length>200)throw new Error('INVALID_FILTER');if(value==='__unknown__')where.push(`${column} IS NULL`);else{values.push(value);where.push(`${column}=$${values.length}`);}}
   }
-  const term=params.get('search');if(term){if(term.length>200)throw new Error('INVALID_FILTER');values.push('%'+term+'%');where.push(`(a.serial_number ILIKE $${values.length} OR a.product_name ILIKE $${values.length} OR a.crm_holder_name ILIKE $${values.length})`);}
+  const term=params.get('search');if(term){if(term.length>200)throw new Error('INVALID_FILTER');values.push('%'+term+'%');where.push(`(a.serial_number ILIKE $${values.length} OR a.contract_number ILIKE $${values.length} OR a.product_name ILIKE $${values.length} OR a.holder_name ILIKE $${values.length})`);}
   const scope=params.get('scope')||'all';if(!['all','included','excluded'].includes(scope))throw new Error('INVALID_SCOPE');
-  const globalValues=[];const globalPredicate=inclusionSQL(selection,globalValues);
-  const counts=(await c.query(`SELECT count(*)::int total,count(*) FILTER(WHERE ${globalPredicate})::int included,count(*) FILTER(WHERE NOT ${globalPredicate})::int excluded FROM bi_schema.dim_asset a WHERE ${eligibleSQL('a')}`,globalValues)).rows[0];
+  const globalValues=[];const globalPredicate=inclusionSQL(selection,globalValues,'a','a.selection_key');
+  const counts=(await c.query(`WITH ${cohort} SELECT count(*)::int total,count(*) FILTER(WHERE ${globalPredicate})::int included,count(*) FILTER(WHERE NOT ${globalPredicate})::int excluded FROM analysis_entities a`,globalValues)).rows[0];
   const scopeWhere=[...where,...(scope==='all'?[]:[scope==='included'?included:`NOT ${included}`])];
   const scoped=scopeWhere.length?' WHERE '+scopeWhere.join(' AND '):'';
-  const total=(await c.query(`SELECT count(*)::int total,count(*) FILTER(WHERE ${included})::int retained FROM bi_schema.dim_asset a${scoped}`,values)).rows[0].total;
-  const rows=(await c.query(`SELECT a.serial_number AS "serialNumber",a.product_reference AS "productReference",a.product_name AS "productName",a.crm_status AS "crmStatus",a.crm_flag AS "crmFlag",a.crm_holder_name AS "holderName",${included} AS included FROM bi_schema.dim_asset a${scoped} ORDER BY a.serial_number LIMIT 50 OFFSET $${values.length+1}`,[...values,(page-1)*50])).rows;
-  const options=(await c.query(`SELECT product_reference AS value,max(product_name) AS label,count(*)::int quantity FROM bi_schema.dim_asset a WHERE ${eligibleSQL('a')} AND product_reference IS NOT NULL GROUP BY 1 ORDER BY 2`)).rows;
-  const statuses=(await c.query(`SELECT DISTINCT crm_status AS value FROM bi_schema.dim_asset a WHERE ${eligibleSQL('a')} ORDER BY 1`)).rows;
-  const flags=(await c.query(`SELECT DISTINCT crm_flag AS value FROM bi_schema.dim_asset a WHERE ${eligibleSQL('a')} ORDER BY 1 NULLS LAST`)).rows;
+  const total=(await c.query(`WITH ${cohort} SELECT count(*)::int total,count(*) FILTER(WHERE ${included})::int retained FROM analysis_entities a${scoped}`,values)).rows[0].total;
+  if(params.get('exportDetails')==='true'){
+    const rows=(await c.query(`WITH ${cohort} SELECT a.serial_number AS "serialNumber",a.contract_number AS "contractNumber",a.product_reference AS "productReference",a.product_name AS "productName",a.crm_status AS status,a.crm_flag AS flag,a.holder_name AS "agentName",${included} AS included FROM analysis_entities a${scoped} ORDER BY a.selection_key`,values)).rows;
+    return {revision:selection.revision,total,rows,period:{start:null,end:new Date().toISOString().slice(0,10)}};
+  }
+  const rows=(await c.query(`WITH ${cohort} SELECT a.selection_key AS "selectionKey",a.serial_number AS "serialNumber",a.contract_number AS "contractNumber",a.source,a.product_reference AS "productReference",a.product_name AS "productName",a.crm_status AS "crmStatus",a.crm_flag AS "crmFlag",a.holder_name AS "holderName",${included} AS included FROM analysis_entities a${scoped} ORDER BY a.selection_key LIMIT 50 OFFSET $${values.length+1}`,[...values,(page-1)*50])).rows;
+  const options=(await c.query(`WITH ${cohort} SELECT coalesce(nullif(product_reference,''),'__unknown__') AS value,max(product_name) AS label,count(*)::int quantity FROM analysis_entities a GROUP BY 1 ORDER BY 2`)).rows;
+  const statuses=(await c.query(`WITH ${cohort} SELECT DISTINCT crm_status AS value FROM analysis_entities a ORDER BY 1`)).rows;
+  const flags=(await c.query(`WITH ${cohort} SELECT DISTINCT crm_flag AS value FROM analysis_entities a ORDER BY 1 NULLS LAST`)).rows;
   return {counts,rows,total,page,hasMore:page*50<total,options:{products:options,statuses,flags},selection};
 }

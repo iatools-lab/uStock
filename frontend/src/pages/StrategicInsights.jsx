@@ -4,7 +4,7 @@ import ExcelTable from '../components/ExcelTable.jsx';
 import { agingStock, concentration, redistribution, riskMatrix } from '../domain/strategic-stock.js';
 import '../styles/strategic-insights.css';
 
-const meta=analysis=>[['Début',analysis.window.start],['Fin',analysis.window.end],['Règle','Premières ventes validées Upya ; stock en fin de période'],...Object.entries(analysis.filters||{})];
+const meta=analysis=>[['Début',analysis.window.start],['Fin',analysis.window.end],['Règle','Premiers contrats signés éligibles Upya ; kits disponibles en fin de période'],...Object.entries(analysis.filters||{})];
 
 export function StockRisks({analysis}){
   const matrix=riskMatrix(analysis),critical=matrix.positions.filter(r=>r.zone&&r.risk==='critical').length;

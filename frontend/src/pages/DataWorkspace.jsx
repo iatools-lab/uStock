@@ -15,6 +15,9 @@ const ROLE_LABELS={dg:'Pilotage du stock'};
 import { loadSnapshot, quantity } from '../data/real-stock.js';
 import '../styles/real-stock.css';
 import KpiScope from '../components/KpiScope.jsx';
+import SalesDownload from '../components/SalesDownload.jsx';
+import KpiDownload from '../components/KpiDownload.jsx';
+import HomeSalesCharts from '../components/HomeSalesCharts.jsx';
 import { stockScope } from '../domain/stock-scope.js';
 import '../styles/kpi-scope.css';
 
@@ -28,6 +31,8 @@ export default function DataWorkspace() {
   const [page, setPage] = useState(1), [retry, setRetry] = useState(0), [state, setState] = useState({ loading: true });
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('upowa:sidebar:collapsed') === 'true'; } catch { return false; } });
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const snapshots=useRef(new Map());
+  const [homeSales,setHomeSales]=useState({});
   const toggleSidebar = () => { const value = !collapsed; setCollapsed(value); try { localStorage.setItem('upowa:sidebar:collapsed', String(value)); } catch {} };
   const menuLabel = MENUS[role].find(item => item.path === menu)?.label || 'Vue d’ensemble';
   const endpoint = '/api/local-stock';
@@ -52,18 +57,34 @@ export default function DataWorkspace() {
   useEffect(() => {
     const controller = new AbortController();
     let pending = false;
-    setState({ loading: true });
+    const key=JSON.stringify([view,effectiveLevel,days,filters]);
+    const cached=snapshots.current.get(key);
+    setState(cached&&Date.now()-cached.at<60000?{data:cached.data,refreshing:true}:{loading:true});
     async function refresh() {
-      if (pending) return;
+      if (pending||document.hidden) return;
       pending = true;
-      try { const data = await loadSnapshot(endpoint, { role, page: 1, filters: filters, view, level: effectiveLevel, days, signal: controller.signal }); if (!controller.signal.aborted) setState({ data }); }
-      catch (error) { if (!controller.signal.aborted) setState({ error: error.message }); }
+      try { const data = await loadSnapshot(endpoint, { role, page: 1, filters: filters, view, level: effectiveLevel, days, section:view==='overview'?'summary':undefined, signal: controller.signal }); if (!controller.signal.aborted) { snapshots.current.set(key,{data,at:Date.now()});while(snapshots.current.size>12)snapshots.current.delete(snapshots.current.keys().next().value);setState({data}); } }
+      catch (error) { if (!controller.signal.aborted) setState(previous=>previous.data?{...previous,refreshing:false,refreshError:error.message}:{error:error.message}); }
       finally { pending = false; }
     }
-    refresh();
-    const timer = setInterval(refresh, ['analytics','forecast','performance'].includes(view)?60000:15000);
-    return () => { controller.abort(); clearInterval(timer); };
+    const initial=setTimeout(refresh,filters.search?300:0);
+    const timer = setInterval(refresh,60000);
+    const onFocus=()=>{if(!document.hidden)refresh();};
+    const onSelection=event=>{if(event.key==='ustock:analysis-revision'){snapshots.current.clear();setRetry(n=>n+1);}};
+    window.addEventListener('focus',onFocus);document.addEventListener('visibilitychange',onFocus);window.addEventListener('storage',onSelection);
+    return () => { controller.abort();clearTimeout(initial); clearInterval(timer);window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);window.removeEventListener('storage',onSelection); };
   }, [role, page, retry, filters, view, effectiveLevel, days]);
+  useEffect(()=>{
+    if(view!=='overview'||!state.data?.scope.authorized)return;
+    const controller=new AbortController();
+    const revision=state.data.selection.revision;
+    const key=JSON.stringify([filters,revision]);
+    setHomeSales(previous=>previous.key===key?{...previous,loading:true,error:null}:{key,loading:true});
+    loadSnapshot(endpoint,{role,page:1,filters,view,level:effectiveLevel,days,section:'analysis',signal:controller.signal})
+      .then(result=>{if(controller.signal.aborted)return;if(result.selection.revision!==revision){setRetry(n=>n+1);return;}setHomeSales({key,data:result.analysis});})
+      .catch(error=>{if(!controller.signal.aborted)setHomeSales({key,error:error.message});});
+    return()=>controller.abort();
+  },[view,filters,effectiveLevel,days,state.data?.scope.authorized,state.data?.selection.revision,state.data?.queriedAt,retry]);
   const choosePeriod = kind => {
     const end=todayInDouala(),year=Number(end.slice(0,4)),month=Number(end.slice(5,7));
     const first=kind==='month'?month:kind==='quarter'?Math.floor((month-1)/3)*3+1:kind==='semester'?Math.floor((month-1)/6)*6+1:1;
@@ -79,18 +100,22 @@ export default function DataWorkspace() {
     <aside className="sidebar"><button className="sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'} title={collapsed ? 'Déplier la barre latérale' : 'Réduire la barre latérale'} aria-expanded={!collapsed}>{collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}</button><div className="sidebar__brand"><div className="brand" aria-label="upOwa"><span className="brand__up">up</span><span className="brand__o">o</span><span className="brand__wa">wa</span><small className="brand__tagline">tracking des kits</small></div></div><div className="sidebar__eyebrow">Pilotage</div><RoleNavigation role={role} /><div className="sidebar__bottom"><div className="profile-card"><div className="avatar">ST</div><div><strong>{ROLE_LABELS[role]}</strong><span>{scope.title}</span></div></div></div></aside>
     <main id="dashboard" className="main-content" tabIndex={-1}><header className="topbar"><div><p className="page-kicker">{ROLE_LABELS[role]}</p><h1>{menuLabel}</h1></div><FilterToolbar filters={filters} open={filtersOpen} onToggle={()=>setFiltersOpen(v=>!v)} onRefresh={()=>setRetry(n=>n+1)}/></header>
     <div className={`${view === 'overview' ? 'overview' : 'commercial-content'} live-stock`} data-live-view={view}>
-    <p className="sr-only">Lecture directe de PostgreSQL distant · actualisation toutes les 15 secondes.</p>
+    <p className="sr-only">Lecture directe de PostgreSQL distant · actualisation toutes les 60 secondes.</p>
       <WorkspaceFilters open={filtersOpen} onClose={()=>setFiltersOpen(false)} filters={filters} data={data||filterData.current} view={view} onChange={updateFilters} onReset={()=>{setPage(1);setFilters({});}} onPeriod={choosePeriod} today={data?.today||filterData.current?.today||todayInDouala()}/>
+    {state.refreshError&&<p role="status">Actualisation indisponible. Les dernières données chargées restent affichées.</p>}
     {state.loading && <p role="status">Chargement des données…</p>}
     {state.error && <section className="panel" role="alert"><h2>Données réelles indisponibles</h2><p>{state.error}</p><p>La connexion à la base distante est indisponible. Réessayez dans quelques instants.</p><button onClick={() => setRetry(n => n + 1)}>Réessayer</button></section>}
     {data && !data.scope.authorized && <section className="panel" role="alert"><h2>Périmètre non accessible</h2><p>Votre affectation doit être confirmée par la source de données.</p></section>}
     {data?.scope.authorized && <>
 
       <>
-        {view === 'overview' && <><KpiScope filters={filters} options={data.options}/><section className="overview-kpis" aria-label="Indicateurs réels">{[['total',scope.title,Boxes],['instock','En stock',PackageCheck],['deployed',data.period?.start?'Vendus sur la période':'Équipements déployés / vendus',CheckCircle2],['defective',data.period?.start?'Défauts sur la période':'Stock défectueux',AlertTriangle]].map(([key,label,Icon], index) => <article key={key} className={`overview-metric ${index === 0 ? 'overview-metric--primary' : ''}`}><div><span>{label}</span><Icon size={19} /></div><strong>{data.metrics[key].value == null ? '—' : quantity(data.metrics[key].value)}</strong></article>)}</section>
-        <section className="panel custody-panel"><div className="custody-heading"><div><p className="eyebrow">Localisation du stock</p><h2>Où sont les kits ?</h2><ChartInfo align="left" title="Où sont les kits ?" explanation="Chaque couleur montre à qui les kits sont rattachés : entrepôts, area managers, boutiques, agents ou clients après une vente. Une grande partie signifie beaucoup de kits. Les nombres sous la barre donnent le détail."/></div><span>{quantity(data.metrics.total.value)} équipements · dernier détenteur déclaré</span></div>
-          <div className="custody-track" role="img" aria-label="Répartition du stock par détenteur">{data.custody.map((row,index) => <div key={row.key} style={{width:`${Number(data.metrics.total.value) ? Number(row.quantity)/Number(data.metrics.total.value)*100 : 0}%`,background:['#001a70','#3265b5','#73a4d9','#fe5716','#a5b0c0'][index%5]}} title={`${row.label} : ${quantity(row.quantity)}`} />)}</div>
-          <div className="custody-grid">{data.custody.map(row => { const Icon = {central:Warehouse,am:BriefcaseBusiness,shop:Store,agent:UsersRound}[row.key] || Boxes; return <div className="custody-item" key={row.key}><span className="custody-icon"><Icon size={21}/></span><div><span>{row.label}</span><strong>{quantity(row.quantity)}</strong></div></div>; })}</div>
+        {view === 'overview' && <><KpiScope filters={filters} options={data.options}/><section className="overview-kpis" aria-label="Indicateurs réels">{[['total',scope.title,Boxes],['instock','Kits disponibles',PackageCheck],['deployed',data.period?.start?'Vendus sur la période':'Équipements déployés / vendus',CheckCircle2],['defective',data.period?.start?'Défauts sur la période':'Stock défectueux',AlertTriangle]].map(([key,label,Icon], index) => <article key={key} className={`overview-metric ${index === 0 ? 'overview-metric--primary' : ''}`}><div><span>{label}{key==='deployed'&&<SalesDownload data={data} filters={filters} expectedCount={data.metrics.deployed.value}/ >}{key!=='deployed'&&<KpiDownload data={data} filters={filters} metric={key} count={data.metrics[key].value} title={label}/>}</span><Icon size={19} /></div><strong>{data.metrics[key].value == null ? '—' : quantity(data.metrics[key].value)}</strong></article>)}</section>
+        {homeSales.loading&&!homeSales.data&&<p role="status">Chargement des courbes de ventes…</p>}
+        {homeSales.error&&<p role="alert">Courbes de ventes indisponibles. <button onClick={()=>setRetry(n=>n+1)}>Réessayer</button></p>}
+        <HomeSalesCharts analysis={homeSales.key===JSON.stringify([filters,data.selection.revision])?homeSales.data:null}/>
+        <section className="panel custody-panel"><div className="custody-heading"><div><p className="eyebrow">Localisation du stock</p><h2>Où est le stock disponible ?</h2><ChartInfo align="left" title="Où est le stock disponible ?" explanation="Cette répartition montre les kits disponibles par détenteur. Les accessoires, les retours, les réparations, les reconditionnés et les cas à contrôler sont exclus. La somme correspond au KPI Kits disponibles."/></div><span>{quantity(data.metrics.instock.value)} kits disponibles · détenteur déclaré</span></div>
+          <div className="custody-track" role="img" aria-label="Répartition du stock par détenteur">{(data.stockCustody||[]).map((row,index) => <div key={row.key} style={{width:`${Number(data.metrics.instock.value) ? Number(row.quantity)/Number(data.metrics.instock.value)*100 : 0}%`,background:['#001a70','#3265b5','#73a4d9','#fe5716','#a5b0c0'][index%5]}} title={`${row.label} : ${quantity(row.quantity)}`} />)}</div>
+          <div className="custody-grid">{(data.stockCustody||[]).map(row => { const Icon = {central:Warehouse,am:BriefcaseBusiness,shop:Store,agent:UsersRound}[row.key] || Boxes; return <div className="custody-item" key={row.key}><span className="custody-icon"><Icon size={21}/></span><div><span>{row.label}<KpiDownload data={data} filters={{...filters,holderKind:row.key}} metric="instock" count={row.quantity} title={`Kits disponibles - ${row.label}`}/></span><strong>{quantity(row.quantity)}</strong></div></div>; })}</div>
         </section>
         <div className="overview-distribution"><BarChart title="Répartition par zone" rows={(data.mapZones||[]).map(r=>({...r,quantity:Number(r.quantity)}))} unit="équipements"/><ProductChart rows={chartProducts(data.products)} title="Parc analysé par produit" unit="équipements" /></div>
         </>}

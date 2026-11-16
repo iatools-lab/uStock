@@ -8,10 +8,17 @@ const unique = (rows, field) => { const values = [...new Set(rows.map(row => row
 const aliases = { 'AFANLOUM':'AFAMLOUM', 'TOUBOUROU':'TOUBORO', 'AKOM2':'AKOM II', 'AKOM 2':'AKOM II', 'NGAMBE TIKAR':'NGAMBE TIKAR' };
 let cached;
 let agentWorkbook;
+let workbookCache,workbookPending;
+async function readWorkbook(file,mtime){
+  if(workbookCache?.mtime===mtime)return workbookCache.book;
+  if(workbookPending?.mtime===mtime)return workbookPending.promise;
+  const promise=readXlsxFile(fileURLToPath(file)).then(book=>{workbookCache={mtime,book};return book;}).finally(()=>{if(workbookPending?.promise===promise)workbookPending=null;});
+  workbookPending={mtime,promise};return promise;
+}
 export async function loadAgentAssignments(){
   const file=new URL('./Agents_Terrain_Uniformises.xlsx',import.meta.url),info=await stat(file);
   if(agentWorkbook?.mtime===info.mtimeMs)return agentWorkbook.assignments;
-  const book=await readXlsxFile(fileURLToPath(file));
+  const book=await readWorkbook(file,info.mtimeMs);
   const assignments=parseAgentAssignments(book);
   agentWorkbook={mtime:info.mtimeMs,assignments};return assignments;
 }
@@ -40,7 +47,7 @@ export async function loadTerritories() {
   const file = new URL('./Agents_Terrain_Uniformises.xlsx', import.meta.url);
   const info = await stat(file);
   if (cached?.mtime === info.mtimeMs) return cached.rows;
-  const workbook = await readXlsxFile(fileURLToPath(file));
+  const workbook = await readWorkbook(file,info.mtimeMs);
   const data = workbook.find(sheet=>sheet.sheet==='Referentiel_localites')?.data;
   if(!data)throw new Error('INVALID_MAPPING');
   if (normalize(data[0]?.[3]) !== 'ARRONDISSEMENT') throw new Error('INVALID_MAPPING');
@@ -128,6 +135,9 @@ export function enrichAgentNetwork(agents,links){
   return attachManagers(agents);
 }
 export function mapAgents(agents, rows, assignments=new Map()) {
+  const canonicalIndexes=new Map(['zone','region','department','arrondissement'].map(field=>{
+    const index=new Map();for(const row of rows){const key=normalize(row[field]);if(!index.has(key))index.set(key,new Set());index.get(key).add(row[field]);}return [field,index];
+  }));
   const known=new Set(agents.map(a=>a.agent_number));
   agents=[...agents,...[...assignments].filter(([id])=>!known.has(id)).map(([id,assignment])=>({agent_number:id,agent_name:assignment.identity?.name,role:assignment.identity?.role,in_crm:false,team:'[]',referenceOnly:true}))];
   let cache=mappingCache.get(rows);if(!cache){cache=new Map();mappingCache.set(rows,cache);}
@@ -136,9 +146,11 @@ export function mapAgents(agents, rows, assignments=new Map()) {
     let location=cache.get(key);if(!location){location=locateAgent(agent,rows);cache.set(key,location);}
     const assigned=assignments.get(agent.agent_number);
     if(!assigned)return {...agent,...location};
-    const canonical=(value,field)=>{if(!value)return null;const matches=[...new Set(rows.filter(r=>normalize(r[field])===normalize(value)).map(r=>r[field]))];return matches.length===1?matches[0]:value;};
+    const canonical=(value,field)=>{if(!value)return null;const matches=canonicalIndexes.get(field).get(normalize(value));return matches?.size===1?[...matches][0]:value;};
     const declared=Object.fromEntries(['zone','region','department','arrondissement'].filter(field=>assigned[field]).map(field=>[field,canonical(assigned[field],field)]));
-    const inferred=locateAgent({...agent,location_arrondissement:assigned.arrondissement||null,location_commune:null,location_zone:null,location_village:null,location_district:assigned.department||null,location_region:assigned.region||null,entity_name:assigned.zone||null},rows);
+    const inferredKey=JSON.stringify(['assigned',agent.role,assigned.arrondissement,assigned.department,assigned.region,assigned.zone,['ADMINISTRATOR','POINT RELAIS','SAV'].includes(normalize(agent.role))?agent.agent_name:null]);
+    let inferred=cache.get(inferredKey);
+    if(!inferred){inferred=locateAgent({...agent,location_arrondissement:assigned.arrondissement||null,location_commune:null,location_zone:null,location_village:null,location_district:assigned.department||null,location_region:assigned.region||null,entity_name:assigned.zone||null},rows);cache.set(inferredKey,inferred);}
     const geo={...location};
     for(const field of ['region','department','arrondissement','zone'])if(inferred[field])geo[field]=inferred[field];
     const conflict=location.conflict||Object.entries(declared).some(([field,value])=>location[field]&&normalize(location[field])!==normalize(value));

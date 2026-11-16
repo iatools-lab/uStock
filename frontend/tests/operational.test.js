@@ -22,10 +22,10 @@ test('les vendeurs distincts dans une meme zone ne sont pas fusionnes par le ser
 });
 
 test('la comparaison ne recalcule pas le stock et le detail vendeur reste reserve aux vues commerciales',async()=>{
-  let sql;
-  const c={query:async text=>{sql=text;return {rows:['A','B'].map(holder_id=>({month:'2026-10',status:'DEPLOYED',product_reference:'JUA',holder_id,holder_name:holder_id,quantity:2}))};}};
+  const queries=[];
+  const c={query:async text=>{queries.push(text);return {rows:['A','B'].map(holder_id=>({month:'2026-10',status:'DEPLOYED',product_reference:'JUA',holder_id,holder_name:holder_id,quantity:2}))};}};
   const args={params:new URLSearchParams({startDate:'2026-10-01'}),selection:{rules:[]},asOfDate:'2026-10-31',view:'forecast',decorate:r=>({...r,productReference:r.product_reference,zone:'Z1'}),matchesGroup:()=>true,salesOnly:true};
   const detailed=await queryAnalysis(c,{...args,includeActors:true});
-  assert.ok(sql.includes('WHERE false'));assert.equal(detailed.rows.length,2);
+  assert.ok(queries.some(sql=>sql.includes('WHERE false')));assert.equal(detailed.rows.length,2);
   const grouped=await queryAnalysis(c,args);assert.equal(grouped.rows.length,1);assert.equal(grouped.rows[0].quantity,4);
 });

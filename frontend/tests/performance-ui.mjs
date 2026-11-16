@@ -4,7 +4,7 @@ import { createProductionServer } from '../server/production.mjs';
 import { queryStock } from '../server/stock-query.mjs';
 import { client } from './director-data.mjs';
 const memo=new Map();
-const fixture={query:async(sql,values=[])=>{const data=await client.query(sql,values);if(sql.includes('GROUP BY month,product_reference,status,holder_id,routing_shop_id')&&values[0]<'2026-10-01')return {rows:data.rows.map(r=>({...r,quantity:r.status==='DEPLOYED'?r.quantity*2:r.quantity}))};return data;}};
+const fixture={query:async(sql,values=[])=>{const data=await client.query(sql,values);if((sql.includes('GROUP BY month,product_reference,status,holder_id,routing_shop_id')||sql.includes('FROM contract_sales a'))&&values[0]<'2026-10-01')return {rows:data.rows.map(r=>({...r,quantity:r.status==='DEPLOYED'?r.quantity*2:r.quantity}))};return data;}};
 const database={snapshot:params=>{const key=params.toString();if(!memo.has(key))memo.set(key,queryStock(fixture,params));return memo.get(key);},health:async()=>{},close:async()=>{}};
 const app=createProductionServer({database});let browser;
 try{

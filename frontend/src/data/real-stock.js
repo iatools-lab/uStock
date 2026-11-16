@@ -40,15 +40,20 @@ export function validateSnapshot(data) {
   }
   return data;
 }
-export async function loadSnapshot(endpoint, { role, page, filters = {}, view, level, days, signal, fetcher = fetch }) {
+export async function loadSnapshot(endpoint, { role, page, filters = {}, view, level, days, section, signal, fetcher = fetch }) {
   if (!endpoint) throw new Error('La source de données réelles reste à configurer.');
   const url = new URL(endpoint, globalThis.location?.origin || 'http://localhost');
   if (url.origin !== (globalThis.location?.origin || 'http://localhost')) throw new Error('La source doit utiliser la même origine que le site.');
   url.searchParams.set('role', role); url.searchParams.set('page', String(page));
   for (const key of ['date', 'startDate', 'endDate', 'granularity', 'comparison', 'product', 'region', 'zone', 'department', 'arrondissement', 'amId', 'shopId', 'holderId', 'holderKind', 'status', 'search']) if (filters[key]) url.searchParams.set(key, filters[key]);
-  for (const [key,value] of Object.entries({view,level,days})) if(value) url.searchParams.set(key,String(value));
+  for (const [key,value] of Object.entries({view,level,days,section})) if(value) url.searchParams.set(key,String(value));
   const response = await fetcher(url.pathname + url.search, { signal, cache: 'no-store', headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error(`Données indisponibles (${response.status}).`);
   if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('La source ne renvoie pas de JSON.');
-  return validateSnapshot(await response.json());
+  const data=await response.json();
+  if(section==='analysis'){
+    if(!data.analysis||!Array.isArray(data.analysis.rows)||!Array.isArray(data.analysis.months)||!data.analysis.window||!Number.isSafeInteger(data.selection?.revision))throw new Error('Courbes de ventes invalides.');
+    return data;
+  }
+  return validateSnapshot(data);
 }

@@ -37,7 +37,7 @@ function BarPlot({rows,title,value='quantity',unit='kits',expanded,seriesSpec,si
   const options={colors:signed?visible.map(r=>number(r[value])<0?'#c34444':'#168779'):spec.length===1?visible.map((_,i)=>chartColor(i)):spec.map((_,i)=>chartColor(i)),plotOptions:{bar:{horizontal:true,distributed:spec.length===1,borderRadius:4,barHeight:'65%'}},legend:{show:spec.length>1},dataLabels:{enabled:true,formatter:format},xaxis:{categories:visible.map(r=>r.label),labels:{formatter:format}},yaxis:{labels:{maxWidth:expanded?350:180}},tooltip:{y:{formatter:v=>`${format(v)} ${unit}`}}};
   return <section className="panel"><h2>{title}</h2>{visible.length?<Plot type="bar" options={options} series={series} height={Math.max(300,visible.length*(spec.length>1?48:32)+90)} title={title}/>:<p>Aucune donnée pour cette sélection.</p>}{!expanded&&rows.length>12&&<small>12 premiers · agrandir pour afficher tous les éléments.</small>}{expanded&&<Values title={title} headers={['Périmètre',...spec.map(s=>s.label)]} rows={rows.map(r=>[r.label,...spec.map(s=>number(r[s.key]))])}/>}</section>;
 }
-export function TrendChart(props){return <ChartFrame title={props.title}>{expanded=><TrendPlot {...props} expanded={expanded}/>}</ChartFrame>;}
+export function TrendChart(props){return <ChartFrame title={props.title} explanation={props.explanation}>{expanded=><TrendPlot {...props} expanded={expanded}/>}</ChartFrame>;}
 function TrendPlot({data,title,series,subtitle,showValues=true,expanded}){
   const [hidden,setHidden]=useState(new Set()),[search,setSearch]=useState('');
   const visible=series.filter(s=>!hidden.has(s.key)),legend=series.filter(s=>s.label.toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr')));

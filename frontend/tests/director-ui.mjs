@@ -23,6 +23,11 @@ try{
  await page.getByRole('dialog').waitFor();assert.equal(await page.locator('dialog tbody tr').count(),2);
  await page.getByRole('button',{name:'Fermer le mix produit'}).click();
  for(const path of ['/dc','/supply-chain','/am','/it']){await page.goto(base+path);await page.waitForURL(base+'/directeur');}
+ await page.locator('.custody-grid .custody-item strong').first().waitFor();
+ const located=await page.locator('.custody-grid .custody-item strong').allTextContents();
+ assert.equal(located.reduce((n,value)=>n+Number(value.replace(/\D/g,'')),0),7);
+ assert.ok(!(await page.locator('.custody-grid').innerText()).includes('Clients'));
+ assert.equal(Number((await page.locator('.overview-metric').last().locator('strong').innerText()).replace(/\D/g,'')),1);
  async function chartBeforeTables(){
   await page.locator('.live-stock > p[role="status"]').waitFor({state:'hidden'});
   await page.locator('.apexcharts-canvas').first().waitFor();

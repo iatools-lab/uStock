@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { Download } from 'lucide-react';
 
-export function ExcelButton({title,headers,rows,metadata=[]}){
-  const [busy,setBusy]=useState(false),[error,setError]=useState(false);
+export function ExcelButton({title,headers,rows,metadata=[],getData,iconOnly=false}){
+  const [busy,setBusy]=useState(false),[error,setError]=useState('');
   async function download(){
-    setBusy(true);setError(false);
+    setBusy(true);setError('');
     try{
+      const data=getData?await getData():{headers,rows,metadata};
       const {default:writeExcel}=await import('write-excel-file/browser');
-      const header=headers.map(value=>({value,fontWeight:'bold',backgroundColor:'#001a70',textColor:'#ffffff'}));
-      const sheets=[{sheet:'Donnees',data:[header,...rows],columns:headers.map((_,i)=>({width:i?22:38}))}];
-      if(metadata.length)sheets.push({sheet:'Perimetre',data:[['Tableau',title],...metadata],columns:[{width:28},{width:60}]});
+      const header=data.headers.map(value=>({value,fontWeight:'bold',backgroundColor:'#001a70',textColor:'#ffffff'}));
+      const sheets=[{sheet:'Donnees',data:[header,...data.rows],columns:data.headers.map((_,i)=>({width:i?22:38}))}];
+      if(data.metadata?.length)sheets.push({sheet:'Perimetre',data:[['Tableau',title],...data.metadata],columns:[{width:28},{width:60}]});
       const file=title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/-$/,'');
       await writeExcel(sheets).toFile(`${file}.xlsx`);
-    }catch{setError(true);}finally{setBusy(false);}
+    }catch(error){setError(getData&&error.message?error.message:'Export indisponible. Réessayez.');}finally{setBusy(false);}
   }
-  return <div><button className="secondary-button excel-download" disabled={busy} onClick={download} aria-label={`Télécharger Excel : ${title}`}><Download size={15}/>{busy?'Export…':'Excel'}</button>{error&&<small role="alert">Export indisponible. Réessayez.</small>}</div>;
+  return <div className={iconOnly?'sales-download':''}><button type="button" className={`secondary-button excel-download ${iconOnly?'excel-download--icon':''}`} disabled={busy} aria-busy={busy} title={`Télécharger Excel : ${title}`} onClick={e=>{e.stopPropagation();download();}} aria-label={`Télécharger Excel : ${title}`}><Download size={15}/>{iconOnly?(busy&&<span className="sr-only">Export en cours</span>):busy?'Export…':'Excel'}</button>{error&&<small role="alert">{error}</small>}</div>;
 }
 
 export default function ExcelTable({title,headers,rows,totals,metadata=[]}){

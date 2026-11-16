@@ -30,6 +30,15 @@ test('une panne ou une page HTML ne devient pas un jeu fictif', async () => {
   await assert.rejects(loadSnapshot('/stock', { role: 'dg', page: 1, fetcher: async () => ({ ok: false, status: 503 }) }), /503/);
   await assert.rejects(loadSnapshot('/stock', { role: 'dg', page: 1, fetcher: async () => ({ ok: true, headers: new Headers({ 'content-type': 'text/html' }) }) }), /JSON/);
 });
+
+test('les courbes se chargent separement et une reponse incomplete est refusee',async()=>{
+ let requested;
+ const data={analysis:{rows:[],months:[],window:{start:'2026-10-01',end:'2026-10-31'}},selection:{revision:3}};
+ const options={role:'dg',page:1,view:'overview',section:'analysis',fetcher:async url=>{requested=url;return {ok:true,headers:new Headers({'content-type':'application/json'}),json:async()=>data};}};
+ assert.equal(await loadSnapshot('/api/local-stock',options),data);
+ assert.ok(requested.includes('section=analysis'));
+ data.selection.revision=null;await assert.rejects(loadSnapshot('/api/local-stock',options),/invalides/);
+});
 test('les demandes sont paginées et la cible reste inconnue sans vente', async () => {
   let requested;
   await loadSnapshot('/stock', { role: 'am', page: 2, fetcher: async url => { requested = url; return { ok: true, headers: new Headers({ 'content-type': 'application/json' }), json: async () => snapshot() }; } });
