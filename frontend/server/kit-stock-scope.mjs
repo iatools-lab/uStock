@@ -19,7 +19,7 @@ export function stockConditionSQL(alias='a',{holderName=`${alias}.crm_holder_nam
  WHEN ${label} ~ '(retour|terrain|entrepot rt)' OR upper(coalesce(${alias}.crm_flag,''))='RD' OR (${sold}) OR (${signed})
  OR ${alias}.serial_number IN (
  SELECT event."asset.serialNumber" FROM raw_upowa_schema.crm_asset_events event
- WHERE event.type IN ('DEPLOYED','AFTER SALES','OFFLIELD CODE')
+ WHERE event.type IN ('DEPLOYED','AFTER SALES','OFFLIELD CODE','UNFLAGGED')
  AND event."asset.serialNumber" IS NOT NULL
  )
  OR EXISTS(SELECT 1 FROM bi_schema.fct_asset_lifecycle life WHERE life.serial_number=${alias}.serial_number AND (${before('first_deployed_at')} OR ${before('first_returned_at')})) THEN 'returned'
