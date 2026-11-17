@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, unlinkSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openSelectionStore, inclusionSQL } from '../server/analysis-selection.mjs';
+import { openSelectionStore } from '../server/analysis-selection.mjs';
+import { inclusionSQL } from '../server/queries/selection-rules.mjs';
 
 test('les décisions persistent après fermeture et peuvent être annulées',()=>{
   const folder=mkdtempSync(join(tmpdir(),'ukit-selection-')),file=join(folder,'selection.sqlite');let store=openSelectionStore(file);

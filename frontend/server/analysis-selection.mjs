@@ -1,54 +1,69 @@
-import { DatabaseSync } from 'node:sqlite';
-import { fileURLToPath } from 'node:url';
-import { analysisCohortCTE } from './analysis-cohort.mjs';
-import { inclusionSQL } from './selection-rules.mjs';
-export { inclusionSQL } from './selection-rules.mjs';
+import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 
-export function openSelectionStore(filename = process.env.UKIT_SELECTION_FILE || fileURLToPath(new URL('./analysis-selection.sqlite', import.meta.url))) {
-  const db=new DatabaseSync(filename);
+export function openSelectionStore(
+  filename = process.env.UKIT_SELECTION_FILE ||
+    fileURLToPath(new URL("./analysis-selection.sqlite", import.meta.url)),
+) {
+  const db = new DatabaseSync(filename);
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
     CREATE TABLE IF NOT EXISTS analysis_rule(kind TEXT NOT NULL CHECK(kind IN ('asset','product')), key TEXT NOT NULL, included INTEGER NOT NULL CHECK(included IN (0,1)), reason TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL, PRIMARY KEY(kind,key));
     CREATE TABLE IF NOT EXISTS analysis_revision(id INTEGER PRIMARY KEY CHECK(id=1),version INTEGER NOT NULL);
     INSERT OR IGNORE INTO analysis_revision VALUES(1,0);`);
   return {
-    read(){return {revision:db.prepare('SELECT version FROM analysis_revision WHERE id=1').get().version,rules:db.prepare('SELECT kind,key,included,reason,updated_at AS updatedAt FROM analysis_rule ORDER BY updated_at DESC,kind,key').all().map(r=>({...r,included:Boolean(r.included)}))};},
-    save({kind,keys,included,reason=''}){
-      if(!['asset','product'].includes(kind)||!Array.isArray(keys)||keys.length<1||keys.length>5000||keys.some(key=>typeof key!=='string'||!key.trim()||key.length>200)||![true,false,null].includes(included)||typeof reason!=='string'||reason.length>500)throw new Error('INVALID_SELECTION');
-      const unique=[...new Set(keys)],now=new Date().toISOString();
-      db.exec('BEGIN IMMEDIATE');
-      try{
-        for(const key of unique){
-          if(included===null)db.prepare('DELETE FROM analysis_rule WHERE kind=? AND key=?').run(kind,key);
-          else db.prepare('INSERT INTO analysis_rule VALUES(?,?,?,?,?) ON CONFLICT(kind,key) DO UPDATE SET included=excluded.included,reason=excluded.reason,updated_at=excluded.updated_at').run(kind,key,included?1:0,reason,now);
+    read() {
+      return {
+        revision: db
+          .prepare("SELECT version FROM analysis_revision WHERE id=1")
+          .get().version,
+        rules: db
+          .prepare(
+            "SELECT kind,key,included,reason,updated_at AS updatedAt FROM analysis_rule ORDER BY updated_at DESC,kind,key",
+          )
+          .all()
+          .map((r) => ({ ...r, included: Boolean(r.included) })),
+      };
+    },
+    save({ kind, keys, included, reason = "" }) {
+      if (
+        !["asset", "product"].includes(kind) ||
+        !Array.isArray(keys) ||
+        keys.length < 1 ||
+        keys.length > 5000 ||
+        keys.some(
+          (key) => typeof key !== "string" || !key.trim() || key.length > 200,
+        ) ||
+        ![true, false, null].includes(included) ||
+        typeof reason !== "string" ||
+        reason.length > 500
+      )
+        throw new Error("INVALID_SELECTION");
+      const unique = [...new Set(keys)],
+        now = new Date().toISOString();
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        for (const key of unique) {
+          if (included === null)
+            db.prepare("DELETE FROM analysis_rule WHERE kind=? AND key=?").run(
+              kind,
+              key,
+            );
+          else
+            db.prepare(
+              "INSERT INTO analysis_rule VALUES(?,?,?,?,?) ON CONFLICT(kind,key) DO UPDATE SET included=excluded.included,reason=excluded.reason,updated_at=excluded.updated_at",
+            ).run(kind, key, included ? 1 : 0, reason, now);
         }
-        db.exec('UPDATE analysis_revision SET version=version+1 WHERE id=1; COMMIT');
-      }catch(error){db.exec('ROLLBACK');throw error;}
+        db.exec(
+          "UPDATE analysis_revision SET version=version+1 WHERE id=1; COMMIT",
+        );
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
       return this.read();
     },
-    close(){db.close();},
+    close() {
+      db.close();
+    },
   };
-}
-export async function querySelection(c,params,selection){
-  const page=Number(params.get('page')||1);
-  if(!Number.isSafeInteger(page)||page<1||page>100000)throw new Error('INVALID_PAGE');
-  const cohort=analysisCohortCTE(),values=[],included=inclusionSQL(selection,values,'a','a.selection_key'),where=['true'];
-  for(const [key,column] of [['product','a.product_reference'],['status','a.crm_status'],['flag','a.crm_flag']]){
-    const value=params.get(key);if(value){if(value.length>200)throw new Error('INVALID_FILTER');if(value==='__unknown__')where.push(`${column} IS NULL`);else{values.push(value);where.push(`${column}=$${values.length}`);}}
-  }
-  const term=params.get('search');if(term){if(term.length>200)throw new Error('INVALID_FILTER');values.push('%'+term+'%');where.push(`(a.serial_number ILIKE $${values.length} OR a.contract_number ILIKE $${values.length} OR a.product_name ILIKE $${values.length} OR a.holder_name ILIKE $${values.length})`);}
-  const scope=params.get('scope')||'all';if(!['all','included','excluded'].includes(scope))throw new Error('INVALID_SCOPE');
-  const globalValues=[];const globalPredicate=inclusionSQL(selection,globalValues,'a','a.selection_key');
-  const counts=(await c.query(`WITH ${cohort} SELECT count(*)::int total,count(*) FILTER(WHERE ${globalPredicate})::int included,count(*) FILTER(WHERE NOT ${globalPredicate})::int excluded FROM analysis_entities a`,globalValues)).rows[0];
-  const scopeWhere=[...where,...(scope==='all'?[]:[scope==='included'?included:`NOT ${included}`])];
-  const scoped=scopeWhere.length?' WHERE '+scopeWhere.join(' AND '):'';
-  const total=(await c.query(`WITH ${cohort} SELECT count(*)::int total,count(*) FILTER(WHERE ${included})::int retained FROM analysis_entities a${scoped}`,values)).rows[0].total;
-  if(params.get('exportDetails')==='true'){
-    const rows=(await c.query(`WITH ${cohort} SELECT a.serial_number AS "serialNumber",a.contract_number AS "contractNumber",a.product_reference AS "productReference",a.product_name AS "productName",a.crm_status AS status,a.crm_flag AS flag,a.holder_name AS "agentName",${included} AS included FROM analysis_entities a${scoped} ORDER BY a.selection_key`,values)).rows;
-    return {revision:selection.revision,total,rows,period:{start:null,end:new Date().toISOString().slice(0,10)}};
-  }
-  const rows=(await c.query(`WITH ${cohort} SELECT a.selection_key AS "selectionKey",a.serial_number AS "serialNumber",a.contract_number AS "contractNumber",a.source,a.product_reference AS "productReference",a.product_name AS "productName",a.crm_status AS "crmStatus",a.crm_flag AS "crmFlag",a.holder_name AS "holderName",${included} AS included FROM analysis_entities a${scoped} ORDER BY a.selection_key LIMIT 50 OFFSET $${values.length+1}`,[...values,(page-1)*50])).rows;
-  const options=(await c.query(`WITH ${cohort} SELECT coalesce(nullif(product_reference,''),'__unknown__') AS value,max(product_name) AS label,count(*)::int quantity FROM analysis_entities a GROUP BY 1 ORDER BY 2`)).rows;
-  const statuses=(await c.query(`WITH ${cohort} SELECT DISTINCT crm_status AS value FROM analysis_entities a ORDER BY 1`)).rows;
-  const flags=(await c.query(`WITH ${cohort} SELECT DISTINCT crm_flag AS value FROM analysis_entities a ORDER BY 1 NULLS LAST`)).rows;
-  return {counts,rows,total,page,hasMore:page*50<total,options:{products:options,statuses,flags},selection};
 }

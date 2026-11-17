@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import pg from 'pg';
 import { configuration,createLocalDatabase } from '../server/local-database.mjs';
-import { newStockSQL,eligibleSQL } from '../server/status-scope.mjs';
-import { contractSalesCTE } from '../server/contract-sales.mjs';
-import { inclusionSQL } from '../server/analysis-selection.mjs';
+import { newStockSQL,eligibleSQL } from '../server/queries/status-scope.mjs';
+import { contractSalesCTE } from '../server/queries/contract-sales.mjs';
+import { inclusionSQL } from '../server/queries/selection-rules.mjs';
 import { productionSelection } from '../server/production-selection.mjs';
 const c=new pg.Client(configuration()),store=productionSelection(':memory:');
 const database=createLocalDatabase({selectionStore:store});

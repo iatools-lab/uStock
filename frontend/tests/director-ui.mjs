@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createProductionServer } from '../server/production.mjs';
-import { queryStock } from '../server/stock-query.mjs';
+import { queryStock } from '../server/queries/stock-query.mjs';
 import { client } from './director-data.mjs';
 const app=createProductionServer({database:{snapshot:params=>queryStock(client,params),health:async()=>{},close:async()=>{}}});let browser;
 try{
@@ -22,7 +22,7 @@ try{
  await page.getByRole('button',{name:'Région non renseignée',exact:true}).click();
  await page.getByRole('dialog').waitFor();assert.equal(await page.locator('dialog tbody tr').count(),2);
  await page.getByRole('button',{name:'Fermer le mix produit'}).click();
- for(const path of ['/dc','/supply-chain','/am','/it']){await page.goto(base+path);await page.waitForURL(base+'/directeur');}
+ for(const path of ['/dc','/am','/it']){await page.goto(base+path);await page.waitForURL(base+'/directeur');}
  await page.getByRole('heading',{name:'Kits défectueux par produit',exact:true}).waitFor();
  await page.getByRole('heading',{name:'Stock par produit',exact:true}).waitFor();
  assert.equal(await page.locator('.custody-panel').count(),0);

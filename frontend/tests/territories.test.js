@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadTerritories, loadAgentAssignments, parseAgentAssignments, locateAgent, mapAgents, enrichAgentNetwork } from '../server/territories.mjs';
+import { loadTerritories, loadAgentAssignments, parseAgentAssignments, locateAgent, mapAgents, enrichAgentNetwork } from '../server/queries/territories.mjs';
 import { liveView } from '../src/domain/live-routing.js';
 import { MENUS } from '../src/navigation/menus.js';
-import { territoryPlace } from '../server/stock-query.mjs';
+import { territoryPlace } from '../server/queries/stock-query.mjs';
 
 const rows=await loadTerritories();
 test('les matricules AM explicites sont conservés même si la zone géographique diffère',()=>{

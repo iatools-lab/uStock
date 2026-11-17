@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import pg from 'pg';
-import { configuration } from './local-database.mjs';
-import { contractSalesCTE } from './contract-sales.mjs';
-import { inclusionSQL } from './selection-rules.mjs';
+import { configuration } from '../../local-database.mjs';
+import { contractSalesCTE } from '../contract-sales.mjs';
+import { inclusionSQL } from '../selection-rules.mjs';
 
 const input=process.argv[2];
 if(!input)throw new Error('Indiquer le fichier texte du releve Upya.');
@@ -14,7 +14,7 @@ const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
 const key=(name,role)=>JSON.stringify([normalize(name),normalize(role)]);
 const expected=new Map();
 for(const row of rows){const id=key(row.name,row.role);if(!expected.has(id))expected.set(id,{...row,quantity:0,lines:0});const entry=expected.get(id);entry.quantity+=row.quantity;entry.lines++;}
-const db=new DatabaseSync(fileURLToPath(new URL('./analysis-selection.sqlite',import.meta.url)),{readOnly:true});
+const db=new DatabaseSync(fileURLToPath(new URL('../../analysis-selection.sqlite',import.meta.url)),{readOnly:true});
 const selection={rules:db.prepare('SELECT kind,key,included FROM analysis_rule').all().map(r=>({...r,included:Boolean(r.included)}))};db.close();
 const c=new pg.Client(configuration());
 try{

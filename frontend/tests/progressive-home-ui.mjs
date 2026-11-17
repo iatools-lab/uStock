@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createProductionServer } from '../server/production.mjs';
-import { queryStock } from '../server/stock-query.mjs';
+import { queryStock } from '../server/queries/stock-query.mjs';
 import { client } from './director-data.mjs';
 
 let release,analysisRequested=false;

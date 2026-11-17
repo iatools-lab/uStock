@@ -26,7 +26,7 @@
 .live-filters form{grid-column:1/-1;display:flex;align-items:flex-end;gap:12px}
 .live-filters form label{flex:1}
 .live-filters form button{padding:11px 16px;border:1px solid #dce5ef;border-radius:10px;background:white;color:#24476f}
-.live-stock .custody-icon{color:#3265b5}
+
 .live-stock .table-panel>p{color:#7a8ba2;font-size:12px;line-height:1.6}
 .live-stock .overview-metric>strong{overflow-wrap:anywhere}
 @media(max-width:760px){.live-filters:not([hidden]){grid-template-columns:1fr}.live-filters form{flex-wrap:wrap}.live-stock .overview-metric>strong{font-size:25px}}

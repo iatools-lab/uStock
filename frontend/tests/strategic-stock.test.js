@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { agingStock, concentration, redistribution, riskMatrix, stockPositions } from '../src/domain/strategic-stock.js';
-import { buildAnalysis } from '../server/analytics.mjs';
+import { buildAnalysis } from '../server/queries/analytics.mjs';
 const row=(zone,product,status,quantity,extra={})=>({zone,product,productName:product,status,quantity,month:'2026-10',...extra});
 const analysis=rows=>({window:{days:30,start:'2026-10-01',end:'2026-10-30'},months:['2026-10'],rows});
 

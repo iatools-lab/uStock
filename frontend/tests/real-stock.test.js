@@ -5,7 +5,7 @@ import { stockTarget } from './legacy-commercial-planning.js';
 import { networkPerformance } from './legacy-director.js';
 import { coverageRows } from './legacy-commercial.js';
 import { AS_OF } from './legacy-stock.js';
-import { selectedDate, selectedPeriod } from '../server/stock-query.mjs';
+import { selectedDate, selectedPeriod } from '../server/queries/stock-query.mjs';
 test('les bornes de période sont inclusives, valides et ordonnées',()=>{
   assert.deepEqual(selectedPeriod(new URLSearchParams('startDate=2026-10-01&endDate=2026-10-31'),'2026-11-04'),{start:'2026-10-01',end:'2026-10-31'});
   assert.deepEqual(selectedPeriod(new URLSearchParams(),'2026-11-04'),{start:null,end:'2026-11-04'});

@@ -17,10 +17,15 @@ try{
   assert.ok(html.includes('region=Centre'));
   assert.ok(html.includes('Lecture directe de PostgreSQL distant'));
   assert.ok(!html.includes('NaN'));
-  for(const retired of ['/dc','/supply-chain','/am/','/it/'])assert.ok(!html.includes('href="'+retired));
+  for(const retired of ['/dc','/am/','/it/'])assert.ok(!html.includes('href="'+retired));
   console.log('Rendu DG valide : '+route);
  }
  const admin=renderToString(React.createElement(MemoryRouter,{initialEntries:['/admin']},React.createElement(App)));
  assert.ok(admin.includes('role-admin'));assert.ok(admin.includes('/directeur'));assert.ok(!admin.includes('NaN'));
  console.log('Rendu administration valide.');
+ for(const [route,title] of [['/area-manager/dashboard','R\u00e9sum\u00e9'],['/commercial/dashboard','R\u00e9sum\u00e9'],['/supply-chain/dashboard','R\u00e9sum\u00e9'],['/area-manager','Mon stock'],['/area-manager/besoins','Mes besoins'],['/area-manager/livraisons','Mes livraisons'],['/area-manager/activite','Mon activité'],['/commercial','Besoins des Area managers'],['/supply-chain','Demandes à approvisionner']]){
+  const html=renderToString(React.createElement(MemoryRouter,{initialEntries:[route]},React.createElement(App)));
+  assert.ok(html.includes(title));assert.ok(html.includes('supply-workspace'));assert.ok(!html.includes('NaN'));
+  console.log('Rendu approvisionnement valide : '+route);
+ }
 }finally{await server.close();}

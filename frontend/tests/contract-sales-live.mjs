@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import pg from 'pg';
 import { configuration } from '../server/local-database.mjs';
-import { queryContractSales, queryContractDetails, contractPredicate, contractSalesCTE } from '../server/contract-sales.mjs';
+import { queryContractSales, queryContractDetails, contractPredicate, contractSalesCTE } from '../server/queries/contract-sales.mjs';
 const db=new pg.Client(configuration());
 const columns=['asset.assetNumber','asset.paygNumber','paygNumber','contractNumber','asset.serialNumber','product.productReference','product.name','agent.agentNumber','agent.profile.firstName','agent.profile.lastName','recordingAgent.agentNumber','recordingAgent.profile.firstName','recordingAgent.profile.lastName','signingDate','deal.dealNumber','onboardingStatus','totalPaid','pricingSchedule.upfrontPayment'];
 const row=(id,serial,date,patch={})=>({contractNumber:id,'asset.serialNumber':serial,'product.productReference':'P','product.name':'Kit test','agent.agentNumber':'A','recordingAgent.agentNumber':'R',signingDate:date,'deal.dealNumber':'KIT',onboardingStatus:'Signed',totalPaid:'100','pricingSchedule.upfrontPayment':'100',...patch});

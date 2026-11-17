@@ -1,9 +1,9 @@
 import pg from 'pg';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { configuration } from './local-database.mjs';
-import { contractSalesCTE } from './contract-sales.mjs';
-import { inclusionSQL } from './selection-rules.mjs';
+import { configuration } from '../../local-database.mjs';
+import { contractSalesCTE } from '../contract-sales.mjs';
+import { inclusionSQL } from '../selection-rules.mjs';
 
 const expected = [
  ['FOUMBOT',166],['ATEBA Eveline',49],['Kenmogne',1],['MELONG',9],
@@ -12,7 +12,7 @@ const expected = [
  ['Biwole',54],['Zili',6],['Batouri',9],['KAMDEM Francky',62],
  ['Kiadjeu',37],['Boumssi',1],['ABONG',11],['MANDJOU',23],['Djeugoue',7],['GAROUA-BOULAI',2],
 ];
-const db = new DatabaseSync(fileURLToPath(new URL('./analysis-selection.sqlite',import.meta.url)),{readOnly:true});
+const db = new DatabaseSync(fileURLToPath(new URL('../../analysis-selection.sqlite',import.meta.url)),{readOnly:true});
 const selection={rules:db.prepare('SELECT kind,key,included FROM analysis_rule').all().map(r=>({...r,included:Boolean(r.included)}))};
 db.close();
 const c=new pg.Client(configuration());

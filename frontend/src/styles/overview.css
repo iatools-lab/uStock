@@ -27,18 +27,7 @@
 .overview-metric--primary { background:linear-gradient(120deg,#001a70,#123e92); border-color:transparent; }
 .overview-metric--primary>div,.overview-metric--primary>strong,.overview-metric--primary>div svg { color:white; }
 .overview-metric--primary>small { color:#c1d1ee; }
-.overview .custody-panel { margin-bottom:22px; }
-.custody-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-.custody-heading>span { color:#7c8da4; font-size:11px; }
-.custody-heading .eyebrow { font-size:9px; letter-spacing:1.2px; }
-.custody-heading h2 { font-weight:600; }
-.custody-track { display:flex; overflow:hidden; height:12px; border-radius:8px; background:#eef2f8; margin:24px 0; gap:3px; }
-.custody-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px; }
-.custody-item { display:flex; gap:12px; align-items:center; min-width:0; }
-.custody-icon { width:40px; height:40px; flex-shrink:0; background:#f3f6fb; border-radius:12px; display:grid; place-items:center; }
-.custody-item>div>span { display:block; font-size:11px; color:#6b7d94; }
-.custody-item strong { display:block; margin-top:5px; font-size:23px; color:#1a345d; font-weight:600; }
-.custody-item small { margin-left:auto; font-size:11px; color:#8997aa; }
+
 .overview-distribution { display:grid; grid-template-columns:1.2fr 1fr; gap:22px; margin-bottom:22px; }
 .overview-trends { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
 .overview .panel__head .eyebrow { display:none; }
@@ -58,8 +47,8 @@
 .role-operations .filter-grid select { min-width:0; width:100%; }
 .role-operations .performance-table th:not(:first-child),.role-operations .performance-table td:not(:first-child) { text-align:right; font-variant-numeric:tabular-nums; }
 @media(min-width:1600px) { .overview .filter-grid { grid-template-columns:repeat(6,minmax(0,1fr)); } }
-@media(max-width:1250px) { .overview-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }.custody-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.overview-distribution,.overview-trends { grid-template-columns:1fr; }.overview .donut-layout { grid-template-columns:200px 1fr; }.role-operations .main-content { padding:24px; } }
+@media(max-width:1250px) { .overview-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }.overview-distribution,.overview-trends { grid-template-columns:1fr; }.overview .donut-layout { grid-template-columns:200px 1fr; }.role-operations .main-content { padding:24px; } }
 @media(min-width:761px) and (max-width:1080px) { .role-operations .app-shell { grid-template-columns:215px minmax(0,1fr); }.role-operations .role-menu .nav-item { grid-template-columns:22px 1fr; justify-items:start; text-align:left; font-size:11px; }.role-operations .sidebar .brand__up,.role-operations .sidebar .brand__wa,.role-operations .sidebar .brand__tagline { display:block; } }
-@media(max-width:760px) { .role-operations .main-content { padding:20px 14px 110px; }.role-operations .sidebar { padding:5px; }.overview-kpis { gap:10px; }.overview-metric { padding:16px; }.overview-metric>strong { font-size:28px; }.overview-metric>div { font-size:11px; }.overview .panel { padding:18px; }.custody-heading { align-items:flex-start; flex-direction:column; }.custody-grid { gap:20px 12px; }.custody-item { gap:8px; }.custody-item small { display:none; }.overview .donut-layout { grid-template-columns:1fr; gap:24px; }.overview .filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:760px) { .role-operations .main-content { padding:20px 14px 110px; }.role-operations .sidebar { padding:5px; }.overview-kpis { gap:10px; }.overview-metric { padding:16px; }.overview-metric>strong { font-size:28px; }.overview-metric>div { font-size:11px; }.overview .panel { padding:18px; }.overview .donut-layout { grid-template-columns:1fr; gap:24px; }.overview .filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media print { .overview-meta { display:none; } }
 @media(max-width:760px) { .role-operations .sidebar .role-menu { flex-direction:row; overflow-y:hidden; }.role-operations .sidebar .role-menu .nav-item { width:110px; min-width:110px; }.overview .temporal-chart { min-width:440px; } }

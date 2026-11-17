@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { queryStock } from '../server/stock-query.mjs';
+import { queryStock } from '../server/queries/stock-query.mjs';
 import { client } from './director-data.mjs';
 import { MENUS } from '../src/navigation/menus.js';
 import { liveView } from '../src/domain/live-routing.js';

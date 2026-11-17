@@ -1,65 +1,729 @@
-import { lazy, Suspense, useEffect, useId, useState } from 'react';
-import { ExcelButton } from './ExcelTable.jsx';
-import fr from 'apexcharts/dist/locales/fr.json';
-import ChartFrame, { chartColor } from './ChartFrame.jsx';
+import { lazy, Suspense, useEffect, useId, useState } from "react";
+import { ExcelButton } from "./ExcelTable.jsx";
+import fr from "apexcharts/dist/locales/fr.json";
+import ChartFrame, { chartColor } from "./ChartFrame.jsx";
 
-const ReactChart=lazy(()=>import('react-apexcharts'));
-const number=value=>Number.isFinite(Number(value))?Number(value):0;
-const format=value=>number(value).toLocaleString('fr-FR',{maximumFractionDigits:0});
-function Plot({type,options,series,height,title}){
-  const [mounted,setMounted]=useState(false),id=useId();
-  useEffect(()=>setMounted(true),[]);
-  const common={chart:{id:`apex-${id.replace(/:/g,'')}`,fontFamily:'inherit',foreColor:'#58708f',background:'transparent',locales:[fr],defaultLocale:'fr',animations:{enabled:false},parentHeightOffset:0,toolbar:{show:true,tools:{download:true,selection:false,zoom:type==='line',zoomin:type==='line',zoomout:type==='line',pan:type==='line',reset:type==='line'}},zoom:{enabled:type==='line',type:'x',autoScaleYaxis:true}},theme:{mode:'light'},grid:{borderColor:'#e6edf5',padding:{left:12,right:18}},noData:{text:'Aucune donnée pour cette sélection'},...options};
-  return <div className="apex-chart" data-chart-type={type} role="img" aria-label={title} style={{minHeight:height}}>{mounted?<Suspense fallback={<p role="status">Chargement du graphique…</p>}><ReactChart type={type} options={common} series={series} height={height} width="100%"/></Suspense>:<p role="status">Chargement du graphique…</p>}</div>;
+const ReactChart = lazy(() => import("react-apexcharts"));
+const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+const format = (value) =>
+  number(value).toLocaleString("fr-FR", { maximumFractionDigits: 0 });
+function Plot({ type, options, series, height, title }) {
+  const [mounted, setMounted] = useState(false),
+    id = useId();
+  useEffect(() => setMounted(true), []);
+  const common = {
+    chart: {
+      id: `apex-${id.replace(/:/g, "")}`,
+      fontFamily: "inherit",
+      foreColor: "#58708f",
+      background: "transparent",
+      locales: [fr],
+      defaultLocale: "fr",
+      animations: { enabled: false },
+      parentHeightOffset: 0,
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          selection: false,
+          zoom: type === "line",
+          zoomin: type === "line",
+          zoomout: type === "line",
+          pan: type === "line",
+          reset: type === "line",
+        },
+      },
+      zoom: { enabled: type === "line", type: "x", autoScaleYaxis: true },
+    },
+    theme: { mode: "light" },
+    grid: { borderColor: "#e6edf5", padding: { left: 12, right: 18 } },
+    noData: { text: "Aucune donnée pour cette sélection" },
+    ...options,
+  };
+  return (
+    <div
+      className="apex-chart"
+      data-chart-type={type}
+      role="img"
+      aria-label={title}
+      style={{ minHeight: height }}
+    >
+      {mounted ? (
+        <Suspense fallback={<p role="status">Chargement du graphique…</p>}>
+          <ReactChart
+            type={type}
+            options={common}
+            series={series}
+            height={height}
+            width="100%"
+          />
+        </Suspense>
+      ) : (
+        <p role="status">Chargement du graphique…</p>
+      )}
+    </div>
+  );
 }
-export function ProductChart(props){const title=props.title||'Stock actif par produit';return <ChartFrame title={title}>{expanded=><ProductPlot {...props} title={title} expanded={expanded}/>}</ChartFrame>;}
-function ProductPlot({rows,title,unit='kits actifs',expanded}){
-  const series=rows.map(r=>number(r.active)),total=series.reduce((n,v)=>n+v,0);
-  const options={labels:rows.map(r=>r.name),colors:rows.map((_,i)=>chartColor(i)),legend:{show:true,position:'bottom',horizontalAlign:'left',fontSize:'12px',onItemClick:{toggleDataSeries:true}},dataLabels:{enabled:expanded&&rows.length<=15},stroke:{width:2},plotOptions:{pie:{expandOnClick:true,donut:{size:'70%',labels:{show:true,name:{show:true},value:{show:true,formatter:format},total:{show:true,label:unit,formatter:()=>format(total)}}}}},tooltip:{y:{formatter:value=>`${format(value)} ${unit}`}}};
-  return <section className="panel"><div className="panel__head"><div><p className="eyebrow">Mix produit</p><h2>{title}</h2></div></div>{total?<Plot type="donut" options={options} series={series} height={expanded?540:380} title={title}/>:<p className="table-empty">Aucun équipement pour cette sélection.</p>}{expanded&&<Values title={title} headers={['Produit',unit]} rows={rows.map(r=>[r.name,number(r.active)])}/>}</section>;
+export function ProductChart(props) {
+  const title = props.title || "Stock actif par produit";
+  return (
+    <ChartFrame title={title}>
+      {(expanded) => (
+        <ProductPlot {...props} title={title} expanded={expanded} />
+      )}
+    </ChartFrame>
+  );
 }
-export function BarChart(props){return <ChartFrame title={props.title} explanation={props.explanation}>{expanded=><BarPlot {...props} expanded={expanded}/>}</ChartFrame>;}
-export function StockBars({rows,title}){return <BarChart rows={rows.map(r=>({...r,label:r.name}))} title={title} seriesSpec={[{key:'active',label:'Stock suivi'},{key:'available',label:'Disponible'}]}/>;}
-export function CoverageChart({rows}){
- const title='Où soutenir les ventes avec davantage de stock ?';
- const explanation='Chaque point représente le nom affiché quand on le touche. À droite, ses ventes ont augmenté ; à gauche, elles ont baissé. Plus le point est bas, moins le stock peut durer. Un point à droite et sous la ligne de 30 jours mérite donc de vérifier le réapprovisionnement. Les jours sont une estimation au rythme des ventes observées. Sans ventes de référence ou sans ventes actuelles, le point ne peut pas être placé : le nom reste dans le tableau.';
- return <ChartFrame title={title} explanation={explanation}>{expanded=>{
-  const placed=rows.filter(r=>r.growth!=null&&r.coverage!=null);
-  const series=[{name:'Moins de 30 jours de stock',data:placed.filter(r=>r.coverage<30).map(r=>({x:r.growth,y:r.coverage,label:r.label,stock:r.stock}))},{name:'Au moins 30 jours de stock',data:placed.filter(r=>r.coverage>=30).map(r=>({x:r.growth,y:r.coverage,label:r.label,stock:r.stock}))}];
-  const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const options={colors:['#fe5716','#168779'],markers:{size:7},xaxis:{title:{text:'Progression des ventes (%)'},labels:{formatter:v=>`${Number(v).toFixed(0)} %`}},yaxis:{min:0,title:{text:'Jours de stock estimés'},labels:{formatter:v=>`${Number(v).toFixed(0)} j`}},annotations:{xaxis:[{x:0,borderColor:'#64748b'}],yaxis:[{y:30,borderColor:'#fe5716',label:{text:'30 jours de stock'}}]},tooltip:{custom:({seriesIndex,dataPointIndex,w})=>{const p=w.config.series[seriesIndex].data[dataPointIndex];return `<div class="coverage-tooltip"><strong>${escape(p.label)}</strong><br>${p.x.toFixed(1)} % de progression<br>${p.y.toFixed(1)} jours de stock<br>${format(p.stock)} kits disponibles</div>`;}},legend:{position:'bottom'}};
-  return <section className="panel"><h2>{title}</h2>{placed.length?<Plot title={title} type="scatter" options={options} series={series} height={expanded?520:380}/>:<p>Aucun point calculable pour cette sélection.</p>}{rows.length>placed.length&&<p className="decision-note">{rows.length-placed.length} élément(s) sans comparaison ou couverture calculable restent dans le tableau.</p>}{expanded&&<Values title={title} headers={['Périmètre','Progression (%)','Couverture (jours)','En stock']} rows={rows.map(r=>[r.label,r.growth==null?'Non calculable':r.growth,r.coverage==null?'Non calculable':r.coverage,r.stock])}/>}</section>;
- }}</ChartFrame>;
+function ProductPlot({ rows, title, unit = "kits actifs", expanded }) {
+  const series = rows.map((r) => number(r.active)),
+    total = series.reduce((n, v) => n + v, 0);
+  const options = {
+    labels: rows.map((r) => r.name),
+    colors: rows.map((_, i) => chartColor(i)),
+    legend: {
+      show: true,
+      position: "bottom",
+      horizontalAlign: "left",
+      fontSize: "12px",
+      onItemClick: { toggleDataSeries: true },
+    },
+    dataLabels: { enabled: expanded && rows.length <= 15 },
+    stroke: { width: 2 },
+    plotOptions: {
+      pie: {
+        expandOnClick: true,
+        donut: {
+          size: "70%",
+          labels: {
+            show: true,
+            name: { show: true },
+            value: { show: true, formatter: format },
+            total: { show: true, label: unit, formatter: () => format(total) },
+          },
+        },
+      },
+    },
+    tooltip: { y: { formatter: (value) => `${format(value)} ${unit}` } },
+  };
+  return (
+    <section className="panel">
+      <div className="panel__head">
+        <div>
+          <p className="eyebrow">Mix produit</p>
+          <h2>{title}</h2>
+        </div>
+      </div>
+      {total ? (
+        <Plot
+          type="donut"
+          options={options}
+          series={series}
+          height={expanded ? 540 : 380}
+          title={title}
+        />
+      ) : (
+        <p className="table-empty">Aucun équipement pour cette sélection.</p>
+      )}
+      {expanded && (
+        <Values
+          title={title}
+          headers={["Produit", unit]}
+          rows={rows.map((r) => [r.name, number(r.active)])}
+        />
+      )}
+    </section>
+  );
 }
-function BarPlot({rows,title,value='quantity',unit='kits',expanded,seriesSpec,signed=false}){
-  const visible=expanded?rows:rows.slice(0,12),spec=seriesSpec||[{key:value,label:unit}];
-  const series=spec.map(s=>({name:s.label,data:visible.map(r=>number(r[s.key]))}));
-  const options={colors:signed?visible.map(r=>number(r[value])<0?'#c34444':'#168779'):spec.length===1?visible.map((_,i)=>chartColor(i)):spec.map((_,i)=>chartColor(i)),plotOptions:{bar:{horizontal:true,distributed:spec.length===1,borderRadius:4,barHeight:'65%'}},legend:{show:spec.length>1},dataLabels:{enabled:true,formatter:format},xaxis:{categories:visible.map(r=>r.label),labels:{formatter:format}},yaxis:{labels:{maxWidth:expanded?350:180}},tooltip:{y:{formatter:v=>`${format(v)} ${unit}`}}};
-  return <section className="panel"><h2>{title}</h2>{visible.length?<Plot type="bar" options={options} series={series} height={Math.max(300,visible.length*(spec.length>1?48:32)+90)} title={title}/>:<p>Aucune donnée pour cette sélection.</p>}{!expanded&&rows.length>12&&<small>12 premiers · agrandir pour afficher tous les éléments.</small>}{expanded&&<Values title={title} headers={['Périmètre',...spec.map(s=>s.label)]} rows={rows.map(r=>[r.label,...spec.map(s=>number(r[s.key]))])}/>}</section>;
+export function BarChart(props) {
+  return (
+    <ChartFrame title={props.title} explanation={props.explanation}>
+      {(expanded) => <BarPlot {...props} expanded={expanded} />}
+    </ChartFrame>
+  );
 }
-export function TrendChart(props){return <ChartFrame title={props.title} explanation={props.explanation}>{expanded=><TrendPlot {...props} expanded={expanded}/>}</ChartFrame>;}
-function TrendPlot({data,title,series,subtitle,showValues=true,expanded}){
-  const [hidden,setHidden]=useState(new Set()),[search,setSearch]=useState('');
-  const visible=series.filter(s=>!hidden.has(s.key)),legend=series.filter(s=>s.label.toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr')));
-  const options={colors:visible.map(s=>chartColor(series.indexOf(s))),stroke:{curve:'straight',width:2},markers:{size:expanded?3:2,hover:{sizeOffset:3}},xaxis:{categories:data.map(r=>r.month),tickPlacement:'on',labels:{rotate:-35,hideOverlappingLabels:true}},yaxis:{min:0,forceNiceScale:true,labels:{formatter:format}},legend:{show:!expanded,position:'bottom',horizontalAlign:'left',fontSize:'12px',onItemClick:{toggleDataSeries:true}},tooltip:{shared:true,intersect:false,y:{formatter:format}},dataLabels:{enabled:false}};
-  return <section className="panel temporal-panel"><div className="panel__head"><div><p className="eyebrow">Historique calculé</p><h2>{title}</h2><p className="panel__subtitle">{subtitle}</p></div></div>
-    {expanded&&<><div className="chart-series-controls"><input aria-label="Rechercher une série" placeholder="Rechercher une région, un kit, un AM…" value={search} onChange={e=>setSearch(e.target.value)}/><button className="secondary-button" onClick={()=>setHidden(new Set())}>Tout afficher</button><button className="secondary-button" onClick={()=>setHidden(new Set(series.map(s=>s.key)))}>Tout masquer</button><span>{visible.length} / {series.length} séries affichées</span></div><div className="chart-legend">{legend.map(s=><button key={s.key} aria-pressed={!hidden.has(s.key)} onClick={()=>setHidden(old=>{const next=new Set(old);if(next.has(s.key))next.delete(s.key);else next.add(s.key);return next;})}><i style={{background:chartColor(series.indexOf(s))}}/>{s.label}</button>)}</div></>}
-    {visible.length?<Plot type="line" options={options} series={visible.map(s=>({name:s.label,data:data.map(r=>number(r[s.key]))}))} height={expanded?500:340} title={title}/>:<p>Aucune série affichée. Cliquez sur « Tout afficher » pour retrouver les courbes.</p>}
-    {(showValues||expanded)&&<Values title={title} expanded={expanded} headers={['Période',...series.map(s=>s.label)]} rows={data.map(r=>[r.month,...series.map(s=>number(r[s.key]))])}/>}
-  </section>;
+export function CoverageChart({ rows }) {
+  const title = "Où soutenir les ventes avec davantage de stock ?";
+  const explanation =
+    "Chaque point représente le nom affiché quand on le touche. À droite, ses ventes ont augmenté ; à gauche, elles ont baissé. Plus le point est bas, moins le stock peut durer. Un point à droite et sous la ligne de 30 jours mérite donc de vérifier le réapprovisionnement. Les jours sont une estimation au rythme des ventes observées. Sans ventes de référence ou sans ventes actuelles, le point ne peut pas être placé : le nom reste dans le tableau.";
+  return (
+    <ChartFrame title={title} explanation={explanation}>
+      {(expanded) => {
+        const placed = rows.filter(
+          (r) => r.growth != null && r.coverage != null,
+        );
+        const series = [
+          {
+            name: "Moins de 30 jours de stock",
+            data: placed
+              .filter((r) => r.coverage < 30)
+              .map((r) => ({
+                x: r.growth,
+                y: r.coverage,
+                label: r.label,
+                stock: r.stock,
+              })),
+          },
+          {
+            name: "Au moins 30 jours de stock",
+            data: placed
+              .filter((r) => r.coverage >= 30)
+              .map((r) => ({
+                x: r.growth,
+                y: r.coverage,
+                label: r.label,
+                stock: r.stock,
+              })),
+          },
+        ];
+        const escape = (s) =>
+          String(s).replace(
+            /[&<>"']/g,
+            (c) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              })[c],
+          );
+        const options = {
+          colors: ["#fe5716", "#168779"],
+          markers: { size: 7 },
+          xaxis: {
+            title: { text: "Progression des ventes (%)" },
+            labels: { formatter: (v) => `${Number(v).toFixed(0)} %` },
+          },
+          yaxis: {
+            min: 0,
+            title: { text: "Jours de stock estimés" },
+            labels: { formatter: (v) => `${Number(v).toFixed(0)} j` },
+          },
+          annotations: {
+            xaxis: [{ x: 0, borderColor: "#64748b" }],
+            yaxis: [
+              {
+                y: 30,
+                borderColor: "#fe5716",
+                label: { text: "30 jours de stock" },
+              },
+            ],
+          },
+          tooltip: {
+            custom: ({ seriesIndex, dataPointIndex, w }) => {
+              const p = w.config.series[seriesIndex].data[dataPointIndex];
+              return `<div class="coverage-tooltip"><strong>${escape(p.label)}</strong><br>${p.x.toFixed(1)} % de progression<br>${p.y.toFixed(1)} jours de stock<br>${format(p.stock)} kits disponibles</div>`;
+            },
+          },
+          legend: { position: "bottom" },
+        };
+        return (
+          <section className="panel">
+            <h2>{title}</h2>
+            {placed.length ? (
+              <Plot
+                title={title}
+                type="scatter"
+                options={options}
+                series={series}
+                height={expanded ? 520 : 380}
+              />
+            ) : (
+              <p>Aucun point calculable pour cette sélection.</p>
+            )}
+            {rows.length > placed.length && (
+              <p className="decision-note">
+                {rows.length - placed.length} élément(s) sans comparaison ou
+                couverture calculable restent dans le tableau.
+              </p>
+            )}
+            {expanded && (
+              <Values
+                title={title}
+                headers={[
+                  "Périmètre",
+                  "Progression (%)",
+                  "Couverture (jours)",
+                  "En stock",
+                ]}
+                rows={rows.map((r) => [
+                  r.label,
+                  r.growth == null ? "Non calculable" : r.growth,
+                  r.coverage == null ? "Non calculable" : r.coverage,
+                  r.stock,
+                ])}
+              />
+            )}
+          </section>
+        );
+      }}
+    </ChartFrame>
+  );
 }
-function Values({title='Valeurs du graphique',headers,rows,expanded=true}){return <details className="scope-help" open={expanded||undefined}><summary>Afficher les valeurs du graphique</summary><ExcelButton title={title} headers={headers} rows={rows}/><div className="table-scroll"><table><thead><tr>{headers.map((h,i)=><th key={i}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j}>{typeof v==='number'?format(v):v}</td>)}</tr>)}</tbody></table></div></details>;}
+function BarPlot({
+  rows,
+  title,
+  value = "quantity",
+  unit = "kits",
+  expanded,
+  seriesSpec,
+  signed = false,
+}) {
+  const visible = expanded ? rows : rows.slice(0, 12),
+    spec = seriesSpec || [{ key: value, label: unit }];
+  const series = spec.map((s) => ({
+    name: s.label,
+    data: visible.map((r) => number(r[s.key])),
+  }));
+  const options = {
+    colors: signed
+      ? visible.map((r) => (number(r[value]) < 0 ? "#c34444" : "#168779"))
+      : spec.length === 1
+        ? visible.map((_, i) => chartColor(i))
+        : spec.map((_, i) => chartColor(i)),
+    plotOptions: {
+      bar: {
+        horizontal: true,
+        distributed: spec.length === 1,
+        borderRadius: 4,
+        barHeight: "65%",
+      },
+    },
+    legend: { show: spec.length > 1 },
+    dataLabels: { enabled: true, formatter: format },
+    xaxis: {
+      categories: visible.map((r) => r.label),
+      labels: { formatter: format },
+    },
+    yaxis: { labels: { maxWidth: expanded ? 350 : 180 } },
+    tooltip: { y: { formatter: (v) => `${format(v)} ${unit}` } },
+  };
+  return (
+    <section className="panel">
+      <h2>{title}</h2>
+      {visible.length ? (
+        <Plot
+          type="bar"
+          options={options}
+          series={series}
+          height={Math.max(
+            300,
+            visible.length * (spec.length > 1 ? 48 : 32) + 90,
+          )}
+          title={title}
+        />
+      ) : (
+        <p>Aucune donnée pour cette sélection.</p>
+      )}
+      {!expanded && rows.length > 12 && (
+        <small>12 premiers · agrandir pour afficher tous les éléments.</small>
+      )}
+      {expanded && (
+        <Values
+          title={title}
+          headers={["Périmètre", ...spec.map((s) => s.label)]}
+          rows={rows.map((r) => [
+            r.label,
+            ...spec.map((s) => number(r[s.key])),
+          ])}
+        />
+      )}
+    </section>
+  );
+}
+export function TrendChart(props) {
+  return (
+    <ChartFrame title={props.title} explanation={props.explanation}>
+      {(expanded) => <TrendPlot {...props} expanded={expanded} />}
+    </ChartFrame>
+  );
+}
+function TrendPlot({
+  data,
+  title,
+  series,
+  subtitle,
+  showValues = true,
+  expanded,
+}) {
+  const [hidden, setHidden] = useState(new Set()),
+    [search, setSearch] = useState("");
+  const visible = series.filter((s) => !hidden.has(s.key)),
+    legend = series.filter((s) =>
+      s.label.toLocaleLowerCase("fr").includes(search.toLocaleLowerCase("fr")),
+    );
+  const options = {
+    colors: visible.map((s) => chartColor(series.indexOf(s))),
+    stroke: { curve: "straight", width: 2 },
+    markers: { size: expanded ? 3 : 2, hover: { sizeOffset: 3 } },
+    xaxis: {
+      categories: data.map((r) => r.month),
+      tickPlacement: "on",
+      labels: { rotate: -35, hideOverlappingLabels: true },
+    },
+    yaxis: { min: 0, forceNiceScale: true, labels: { formatter: format } },
+    legend: {
+      show: !expanded,
+      position: "bottom",
+      horizontalAlign: "left",
+      fontSize: "12px",
+      onItemClick: { toggleDataSeries: true },
+    },
+    tooltip: { shared: true, intersect: false, y: { formatter: format } },
+    dataLabels: { enabled: false },
+  };
+  return (
+    <section className="panel temporal-panel">
+      <div className="panel__head">
+        <div>
+          <p className="eyebrow">Historique calculé</p>
+          <h2>{title}</h2>
+          <p className="panel__subtitle">{subtitle}</p>
+        </div>
+      </div>
+      {expanded && (
+        <>
+          <div className="chart-series-controls">
+            <input
+              aria-label="Rechercher une série"
+              placeholder="Rechercher une région, un kit, un AM…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <button
+              className="secondary-button"
+              onClick={() => setHidden(new Set())}
+            >
+              Tout afficher
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => setHidden(new Set(series.map((s) => s.key)))}
+            >
+              Tout masquer
+            </button>
+            <span>
+              {visible.length} / {series.length} séries affichées
+            </span>
+          </div>
+          <div className="chart-legend">
+            {legend.map((s) => (
+              <button
+                key={s.key}
+                aria-pressed={!hidden.has(s.key)}
+                onClick={() =>
+                  setHidden((old) => {
+                    const next = new Set(old);
+                    if (next.has(s.key)) next.delete(s.key);
+                    else next.add(s.key);
+                    return next;
+                  })
+                }
+              >
+                <i style={{ background: chartColor(series.indexOf(s)) }} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {visible.length ? (
+        <Plot
+          type="line"
+          options={options}
+          series={visible.map((s) => ({
+            name: s.label,
+            data: data.map((r) => number(r[s.key])),
+          }))}
+          height={expanded ? 500 : 340}
+          title={title}
+        />
+      ) : (
+        <p>
+          Aucune série affichée. Cliquez sur « Tout afficher » pour retrouver
+          les courbes.
+        </p>
+      )}
+      {(showValues || expanded) && (
+        <Values
+          title={title}
+          expanded={expanded}
+          headers={["Période", ...series.map((s) => s.label)]}
+          rows={data.map((r) => [
+            r.month,
+            ...series.map((s) => number(r[s.key])),
+          ])}
+        />
+      )}
+    </section>
+  );
+}
+function Values({
+  title = "Valeurs du graphique",
+  headers,
+  rows,
+  expanded = true,
+}) {
+  return (
+    <details className="scope-help" open={expanded || undefined}>
+      <summary>Afficher les valeurs du graphique</summary>
+      <ExcelButton title={title} headers={headers} rows={rows} />
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              {headers.map((h, i) => (
+                <th key={i}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>
+                {r.map((v, j) => (
+                  <td key={j}>{typeof v === "number" ? format(v) : v}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
+}
 
-export function ParetoChart({rows,title}){return <ChartFrame title={title}>{expanded=>{
-  const options={colors:['#001a70','#fe5716'],stroke:{width:[0,3],curve:'straight'},plotOptions:{bar:{columnWidth:'65%'}},dataLabels:{enabled:false},xaxis:{categories:rows.map(r=>r.label),labels:{rotate:-40,trim:false}},yaxis:[{seriesName:'Ventes',min:0,title:{text:'Kits vendus'},labels:{formatter:format}},{seriesName:'Part cumulée',opposite:true,min:0,max:100,title:{text:'Part cumulée'},labels:{formatter:v=>`${Math.round(v)} %`}}],legend:{position:'bottom'},tooltip:{shared:true,intersect:false,y:[{formatter:format},{formatter:v=>`${v.toFixed(1)} %`}]}};
-  return <section className="panel"><h2>{title}</h2><div className="strategy-chart-scroll"><div style={{minWidth:Math.max(expanded?900:550,rows.length*65)}}><Plot type="line" title={title} options={options} series={[{name:'Ventes',type:'column',data:rows.map(r=>r.quantity)},{name:'Part cumulée',type:'line',data:rows.map(r=>r.cumulative)}]} height={expanded?480:350}/></div></div><Values title={title} expanded={false} headers={['Élément','Vendus','Part (%)','Part cumulée (%)']} rows={rows.map(r=>[r.label,r.quantity,Number(r.share.toFixed(2)),Number(r.cumulative.toFixed(2))])}/></section>;
-}}</ChartFrame>;}
+export function ParetoChart({ rows, title }) {
+  return (
+    <ChartFrame title={title}>
+      {(expanded) => {
+        const options = {
+          colors: ["#001a70", "#fe5716"],
+          stroke: { width: [0, 3], curve: "straight" },
+          plotOptions: { bar: { columnWidth: "65%" } },
+          dataLabels: { enabled: false },
+          xaxis: {
+            categories: rows.map((r) => r.label),
+            labels: { rotate: -40, trim: false },
+          },
+          yaxis: [
+            {
+              seriesName: "Ventes",
+              min: 0,
+              title: { text: "Kits vendus" },
+              labels: { formatter: format },
+            },
+            {
+              seriesName: "Part cumulée",
+              opposite: true,
+              min: 0,
+              max: 100,
+              title: { text: "Part cumulée" },
+              labels: { formatter: (v) => `${Math.round(v)} %` },
+            },
+          ],
+          legend: { position: "bottom" },
+          tooltip: {
+            shared: true,
+            intersect: false,
+            y: [
+              { formatter: format },
+              { formatter: (v) => `${v.toFixed(1)} %` },
+            ],
+          },
+        };
+        return (
+          <section className="panel">
+            <h2>{title}</h2>
+            <div className="strategy-chart-scroll">
+              <div
+                style={{
+                  minWidth: Math.max(expanded ? 900 : 550, rows.length * 65),
+                }}
+              >
+                <Plot
+                  type="line"
+                  title={title}
+                  options={options}
+                  series={[
+                    {
+                      name: "Ventes",
+                      type: "column",
+                      data: rows.map((r) => r.quantity),
+                    },
+                    {
+                      name: "Part cumulée",
+                      type: "line",
+                      data: rows.map((r) => r.cumulative),
+                    },
+                  ]}
+                  height={expanded ? 480 : 350}
+                />
+              </div>
+            </div>
+            <Values
+              title={title}
+              expanded={false}
+              headers={["Élément", "Vendus", "Part (%)", "Part cumulée (%)"]}
+              rows={rows.map((r) => [
+                r.label,
+                r.quantity,
+                Number(r.share.toFixed(2)),
+                Number(r.cumulative.toFixed(2)),
+              ])}
+            />
+          </section>
+        );
+      }}
+    </ChartFrame>
+  );
+}
 
-export function RiskHeatmap({matrix,title}){return <ChartFrame title={title}>{expanded=>{
-  const series=matrix.zones.map(zone=>({name:zone,data:matrix.products.map(p=>{const cell=matrix.cells.get(JSON.stringify([zone,p.key]));return {x:p.key,y:cell?.coverage==null?-1:cell.coverage,coverage:cell?.coverage??null,stock:cell?.stock??null};})}));
-  const productNames=new Map(matrix.products.map(p=>[p.key,p.label]));
-  const productLabel=value=>productNames.get(String(value))||value;
-  const point=({seriesIndex,dataPointIndex,w})=>w.config.series[seriesIndex]?.data[dataPointIndex];
-  const options={plotOptions:{heatmap:{enableShades:false,colorScale:{ranges:[{from:-2,to:-0.001,color:'#e8edf4',name:'Non calculable'},{from:0,to:14.9999,color:'#efb7b4',name:'Moins de 15 jours'},{from:15,to:29.9999,color:'#f5d795',name:'15 à moins de 30 jours'},{from:30,to:Number.MAX_SAFE_INTEGER,color:'#a7d8ba',name:'30 jours et plus'}]}}},stroke:{width:2,colors:['#ffffff']},dataLabels:{enabled:true,style:{colors:['#173250'],fontSize:'11px'},formatter:(_,info)=>{const p=point(info);return p?.stock==null?'—':p.coverage==null?'NC':`${Math.floor(p.coverage)} j`;}},xaxis:{labels:{rotate:-45,trim:false,formatter:productLabel}},legend:{show:false},tooltip:{x:{formatter:productLabel},y:{formatter:(_,info)=>{const p=point(info);return p?.stock==null?'Aucune observation':`${format(p.stock)} en stock · ${p.coverage==null?'aucune vente observée':p.coverage.toFixed(1)+' jours de couverture'}`;}}}};
-  return <section className="panel risk-panel"><h2>{title}</h2><div className="risk-legend"><span className="risk-critical">Moins de 15 jours</span><span className="risk-warning">15 à moins de 30 jours</span><span className="risk-healthy">30 jours et plus</span><span className="risk-unknown">NC : aucune vente · — : non observé</span></div>{series.length&&matrix.products.length?<div className="strategy-chart-scroll"><div style={{minWidth:Math.max(expanded?950:650,matrix.products.length*95)}}><Plot type="heatmap" title={title} options={options} series={series} height={Math.max(360,series.length*48+150)}/></div></div>:<p>Aucun rattachement à une zone pour cette sélection.</p>}<Values title={title} expanded={false} headers={['Zone','Produit','Référence','En stock','Vendus observés','Couverture (jours)','Besoin 30 jours']} rows={matrix.positions.map(r=>[r.zone||'Sans zone / entrepôts',r.productName,r.product,r.stock,r.sold,r.coverage==null?'Non calculable':Number(r.coverage.toFixed(1)),r.need])}/></section>;
-}}</ChartFrame>;}
+export function RiskHeatmap({ matrix, title }) {
+  return (
+    <ChartFrame title={title}>
+      {(expanded) => {
+        const series = matrix.zones.map((zone) => ({
+          name: zone,
+          data: matrix.products.map((p) => {
+            const cell = matrix.cells.get(JSON.stringify([zone, p.key]));
+            return {
+              x: p.key,
+              y: cell?.coverage == null ? -1 : cell.coverage,
+              coverage: cell?.coverage ?? null,
+              stock: cell?.stock ?? null,
+            };
+          }),
+        }));
+        const productNames = new Map(
+          matrix.products.map((p) => [p.key, p.label]),
+        );
+        const productLabel = (value) =>
+          productNames.get(String(value)) || value;
+        const point = ({ seriesIndex, dataPointIndex, w }) =>
+          w.config.series[seriesIndex]?.data[dataPointIndex];
+        const options = {
+          plotOptions: {
+            heatmap: {
+              enableShades: false,
+              colorScale: {
+                ranges: [
+                  {
+                    from: -2,
+                    to: -0.001,
+                    color: "#e8edf4",
+                    name: "Non calculable",
+                  },
+                  {
+                    from: 0,
+                    to: 14.9999,
+                    color: "#efb7b4",
+                    name: "Moins de 15 jours",
+                  },
+                  {
+                    from: 15,
+                    to: 29.9999,
+                    color: "#f5d795",
+                    name: "15 à moins de 30 jours",
+                  },
+                  {
+                    from: 30,
+                    to: Number.MAX_SAFE_INTEGER,
+                    color: "#a7d8ba",
+                    name: "30 jours et plus",
+                  },
+                ],
+              },
+            },
+          },
+          stroke: { width: 2, colors: ["#ffffff"] },
+          dataLabels: {
+            enabled: true,
+            style: { colors: ["#173250"], fontSize: "11px" },
+            formatter: (_, info) => {
+              const p = point(info);
+              return p?.stock == null
+                ? "—"
+                : p.coverage == null
+                  ? "NC"
+                  : `${Math.floor(p.coverage)} j`;
+            },
+          },
+          xaxis: {
+            labels: { rotate: -45, trim: false, formatter: productLabel },
+          },
+          legend: { show: false },
+          tooltip: {
+            x: { formatter: productLabel },
+            y: {
+              formatter: (_, info) => {
+                const p = point(info);
+                return p?.stock == null
+                  ? "Aucune observation"
+                  : `${format(p.stock)} en stock · ${p.coverage == null ? "aucune vente observée" : p.coverage.toFixed(1) + " jours de couverture"}`;
+              },
+            },
+          },
+        };
+        return (
+          <section className="panel risk-panel">
+            <h2>{title}</h2>
+            <div className="risk-legend">
+              <span className="risk-critical">Moins de 15 jours</span>
+              <span className="risk-warning">15 à moins de 30 jours</span>
+              <span className="risk-healthy">30 jours et plus</span>
+              <span className="risk-unknown">
+                NC : aucune vente · — : non observé
+              </span>
+            </div>
+            {series.length && matrix.products.length ? (
+              <div className="strategy-chart-scroll">
+                <div
+                  style={{
+                    minWidth: Math.max(
+                      expanded ? 950 : 650,
+                      matrix.products.length * 95,
+                    ),
+                  }}
+                >
+                  <Plot
+                    type="heatmap"
+                    title={title}
+                    options={options}
+                    series={series}
+                    height={Math.max(360, series.length * 48 + 150)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p>Aucun rattachement à une zone pour cette sélection.</p>
+            )}
+            <Values
+              title={title}
+              expanded={false}
+              headers={[
+                "Zone",
+                "Produit",
+                "Référence",
+                "En stock",
+                "Vendus observés",
+                "Couverture (jours)",
+                "Besoin 30 jours",
+              ]}
+              rows={matrix.positions.map((r) => [
+                r.zone || "Sans zone / entrepôts",
+                r.productName,
+                r.product,
+                r.stock,
+                r.sold,
+                r.coverage == null
+                  ? "Non calculable"
+                  : Number(r.coverage.toFixed(1)),
+                r.need,
+              ])}
+            />
+          </section>
+        );
+      }}
+    </ChartFrame>
+  );
+}

@@ -13,6 +13,9 @@ COPY --from=build /app/frontend/node_modules ./node_modules
 COPY --from=build /app/frontend/dist ./dist
 COPY frontend/package.json ./
 COPY frontend/server/*.mjs ./server/
+COPY frontend/server/queries/*.mjs ./server/queries/
+COPY frontend/shared/ ./shared/
+COPY frontend/shared/ ./shared/
 COPY frontend/server/*.xlsx ./server/
 COPY backend/scripts/bi/config.mjs /app/backend/scripts/bi/config.mjs
 RUN mkdir -p /app/selection && chown node:node /app/selection

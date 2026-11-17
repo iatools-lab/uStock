@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildAnalysis, analysisWindow } from '../server/analytics.mjs';
+import { buildAnalysis, analysisWindow } from '../server/queries/analytics.mjs';
 import { forecastNeeds, monthlySeries, needsMatrix, stateEvolution } from '../src/domain/live-analysis.js';
 
 const window={start:'2026-10-01',end:'2026-10-30',days:30};

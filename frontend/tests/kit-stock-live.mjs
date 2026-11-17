@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import pg from 'pg';
 import { configuration } from '../server/local-database.mjs';
-import { completeKitSQL, stockConditionSQL } from '../server/kit-stock-scope.mjs';
-import { queryStock } from '../server/stock-query.mjs';
-import { contractSalesCTE } from '../server/contract-sales.mjs';
+import { completeKitSQL, stockConditionSQL } from '../server/queries/kit-stock-scope.mjs';
+import { queryStock } from '../server/queries/stock-query.mjs';
+import { contractSalesCTE } from '../server/queries/contract-sales.mjs';
 
 const c=new pg.Client(configuration());
 try{

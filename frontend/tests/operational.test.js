@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { salesRanking } from './legacy-operational.js';
-import { buildAnalysis, queryAnalysis } from '../server/analytics.mjs';
+import { buildAnalysis, queryAnalysis } from '../server/queries/analytics.mjs';
 
 test('les classements commerciaux conservent les vendeurs et les ventes des deux periodes',()=>{
   const rows=[{status:'DEPLOYED',holderId:'A',holderName:'Alice',quantity:5},{status:'INSTOCK',holderId:'A',quantity:100},{status:'DEPLOYED',holderId:null,quantity:2}];
