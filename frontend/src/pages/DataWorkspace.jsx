@@ -7,10 +7,9 @@ import { LiveNationalStock, LiveStockMap } from './LiveDirectorViews.jsx';
 import StrategicPerformance from './StrategicPerformance.jsx';
 import { LiveAnalytics, LiveForecast } from './LiveAnalytics.jsx';
 import RoleNavigation from '../navigation/RoleNavigation.jsx';
-import { Boxes, PackageCheck, CheckCircle2, AlertTriangle, Warehouse, BriefcaseBusiness, Store, UsersRound, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Boxes, PackageCheck, CheckCircle2, AlertTriangle, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { MENUS, ROLE_ROUTES } from '../navigation/menus.js';
 import { ProductChart, BarChart } from '../components/ApexCharts.jsx';
-import { ChartInfo } from '../components/ChartFrame.jsx';
 const ROLE_LABELS={dg:'Pilotage du stock'};
 import { loadSnapshot, quantity } from '../data/real-stock.js';
 import '../styles/real-stock.css';
@@ -113,11 +112,12 @@ export default function DataWorkspace() {
         {homeSales.loading&&!homeSales.data&&<p role="status">Chargement des courbes de ventes…</p>}
         {homeSales.error&&<p role="alert">Courbes de ventes indisponibles. <button onClick={()=>setRetry(n=>n+1)}>Réessayer</button></p>}
         <HomeSalesCharts analysis={homeSales.key===JSON.stringify([filters,data.selection.revision])?homeSales.data:null}/>
-        <section className="panel custody-panel"><div className="custody-heading"><div><p className="eyebrow">Localisation du stock</p><h2>Où est le stock disponible ?</h2><ChartInfo align="left" title="Où est le stock disponible ?" explanation="Cette répartition montre les kits disponibles par détenteur. Les accessoires, les retours, les réparations, les reconditionnés et les cas à contrôler sont exclus. La somme correspond au KPI Kits disponibles."/></div><span>{quantity(data.metrics.instock.value)} kits disponibles · détenteur déclaré</span></div>
-          <div className="custody-track" role="img" aria-label="Répartition du stock par détenteur">{(data.stockCustody||[]).map((row,index) => <div key={row.key} style={{width:`${Number(data.metrics.instock.value) ? Number(row.quantity)/Number(data.metrics.instock.value)*100 : 0}%`,background:['#001a70','#3265b5','#73a4d9','#fe5716','#a5b0c0'][index%5]}} title={`${row.label} : ${quantity(row.quantity)}`} />)}</div>
-          <div className="custody-grid">{(data.stockCustody||[]).map(row => { const Icon = {central:Warehouse,am:BriefcaseBusiness,shop:Store,agent:UsersRound}[row.key] || Boxes; return <div className="custody-item" key={row.key}><span className="custody-icon"><Icon size={21}/></span><div><span>{row.label}<KpiDownload data={data} filters={{...filters,holderKind:row.key}} metric="instock" count={row.quantity} title={`Kits disponibles - ${row.label}`}/></span><strong>{quantity(row.quantity)}</strong></div></div>; })}</div>
-        </section>
-        <div className="overview-distribution"><BarChart title="Répartition par zone" rows={(data.mapZones||[]).map(r=>({...r,quantity:Number(r.quantity)}))} unit="équipements"/><ProductChart rows={chartProducts(data.products)} title="Parc analysé par produit" unit="équipements" /></div>
+
+        <div className="overview-distribution">
+          <BarChart title="Kits défectueux par produit" rows={data.products.map(row=>({key:row.key,label:row.label,quantity:Number(row.defective||0)})).filter(row=>row.quantity>0).sort((a,b)=>b.quantity-a.quantity)} unit="kits défectueux" explanation="Chaque barre montre le nombre de kits défectueux d’un produit pour les filtres choisis. Plus elle est longue, plus ce produit compte de kits défectueux. Les accessoires sont exclus."/>
+          <BarChart title="Stock par produit" rows={data.products.map(row=>({key:row.key,label:row.label,quantity:Number(row.instock||0)})).filter(row=>row.quantity>0).sort((a,b)=>b.quantity-a.quantity)} unit="kits disponibles" explanation="Chaque barre montre le nombre de kits disponibles pour un produit, selon les filtres choisis. Plus elle est longue, plus ce produit est disponible en stock. Les accessoires et les kits exclus du stock neuf ne sont pas comptés. Agrandissez pour voir tous les produits."/>
+        </div>
+        <ProductChart rows={chartProducts(data.products)} title="Parc analysé par produit" unit="équipements" />
         </>}
         {view === 'stock' && <LiveNationalStock data={data} level={effectiveLevel} onLevel={setLevel} filters={filters} onFilter={updateFilters}/>}
         {view === 'map' && <LiveStockMap data={data} filters={filters} onFilter={updateFilters}/>}

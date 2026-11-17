@@ -17,6 +17,8 @@ test('le mix sans rattachement conserve produits et etats sans doubler les totau
   assert.ok(data.stockCustody.every(r=>r.key!=='client'));
   for(const [key,expected] of [['quantity',10],['instock',7],['deployed',2],['defective',1]])assert.equal(rows.reduce((n,r)=>n+r[key],0),expected);
   assert.equal(Number(data.metrics.total.value),10);assert.equal(data.territories.unassigned.quantity,10);
+  assert.equal(data.defectiveHolders.reduce((n,row)=>n+Number(row.quantity),0),Number(data.metrics.defective.value));
+  assert.equal(data.products.reduce((n,row)=>n+row.defective,0),Number(data.metrics.defective.value));
   assert.equal(data.mapRegionProducts.reduce((n,r)=>n+r.quantity,0),10);
  }
 });

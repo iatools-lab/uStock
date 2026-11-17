@@ -23,10 +23,10 @@ try{
  await page.getByRole('dialog').waitFor();assert.equal(await page.locator('dialog tbody tr').count(),2);
  await page.getByRole('button',{name:'Fermer le mix produit'}).click();
  for(const path of ['/dc','/supply-chain','/am','/it']){await page.goto(base+path);await page.waitForURL(base+'/directeur');}
- await page.locator('.custody-grid .custody-item strong').first().waitFor();
- const located=await page.locator('.custody-grid .custody-item strong').allTextContents();
- assert.equal(located.reduce((n,value)=>n+Number(value.replace(/\D/g,'')),0),7);
- assert.ok(!(await page.locator('.custody-grid').innerText()).includes('Clients'));
+ await page.getByRole('heading',{name:'Kits défectueux par produit',exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Stock par produit',exact:true}).waitFor();
+ assert.equal(await page.locator('.custody-panel').count(),0);
+ assert.equal(await page.getByRole('heading',{name:'Répartition par zone',exact:true}).count(),0);
  assert.equal(Number((await page.locator('.overview-metric').last().locator('strong').innerText()).replace(/\D/g,'')),1);
  async function chartBeforeTables(){
   await page.locator('.live-stock > p[role="status"]').waitFor({state:'hidden'});
